@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- Auth.js Models ---
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Core Models ---
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // hashed, untuk Credentials provider
+  role          UserRole  @default(BUYER)
+  whatsapp      String? // format: 6281234567890
+  bankAccount   String?
+  bankName      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  products     Product[]
+  purchases    Transaction[] @relation("BuyerTransactions")
+  reviews      Review[]
+  withdrawals  Withdrawal[]
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id])
+  title       String
+  description String   @db.Text
+  price       Int // IDR, rupiah (bukan sen)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  fileKey     String // R2 object key, private bucket
+  fileSize    Int? // bytes
+  fileName    String? // original filename
+  thumbnail   String // R2 public URL atau external
+  status      ProductStatus @default(PENDING)
+  salesCount  Int      @default(0)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+  reviews      Review[]
+
+  @@index([status, categoryId])
+  @@index([status, createdAt])
+  @@index([status, salesCount])
+}
+
+enum ProductStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  buyerId         String
+  buyer           User     @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  amount          Int // harga final yang dibayar buyer
+  commission      Int      @default(0) // 10% platform fee
+  netAmount       Int      @default(0) // amount - commission (diterima seller)
+  mayarPaymentId  String?
+  mayarInvoiceUrl String?
+  status          TransactionStatus @default(PENDING)
+  downloadToken   String?  @unique @default(uuid())
+  tokenExpiresAt  DateTime?
+  downloadCount   Int      @default(0)
+  lastDownloadAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reviews Review[]
+
+  @@index([buyerId, status])
+  @@index([mayarPaymentId])
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  transactionId String   @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  buyerId       String
+  buyer         User     @relation(fields: [buyerId], references: [id])
+  rating        Int // 1-5
+  comment       String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([productId, createdAt])
+}
+
+model Withdrawal {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id])
+  amount      Int // dalam rupiah
+  status      WithdrawalStatus @default(PENDING)
+  notes       String? // alasan reject atau info transfer
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSED
+  REJECTED
+}
+
+model DownloadLog {
+  id            String   @id @default(cuid())
+  transactionId String
+  userId        String
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([transactionId, createdAt])
+}
+
+model WebhookLog {
+  id        String   @id @default(cuid())
+  provider  String // "mayar"
+  eventId   String?
+  payload   Json
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([provider, eventId])
+}
