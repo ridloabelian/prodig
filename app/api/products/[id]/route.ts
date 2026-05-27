@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         seller: { select: { id: true, name: true, image: true } },
         category: { select: { id: true, name: true, slug: true } },
@@ -31,7 +32,7 @@ export async function GET(
 
     // Increment view count async
     prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: { viewCount: { increment: 1 } },
     }).catch(console.error)
 

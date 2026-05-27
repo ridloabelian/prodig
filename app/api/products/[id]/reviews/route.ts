@@ -3,16 +3,17 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get("page") || "1")
     const limit = 10
     const skip = (page - 1) * limit
 
     const reviews = await prisma.review.findMany({
-      where: { productId: params.id },
+      where: { productId: id },
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,

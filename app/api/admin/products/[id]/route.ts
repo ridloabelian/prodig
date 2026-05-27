@@ -11,9 +11,10 @@ const patchSchema = z.object({
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await getServerSession(authOptions)
     if (!session || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -31,7 +32,7 @@ export async function PATCH(
     const { status, notes } = parsed.data
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: { status },
       include: {
         seller: { select: { id: true, name: true, email: true } },
