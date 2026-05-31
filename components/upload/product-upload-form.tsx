@@ -33,10 +33,8 @@ export function ProductUploadForm({ categories }: { categories: Category[] }) {
     setFileSize(size)
   }
 
-  const handleThumbnailUpload = (key: string, name: string) => {
-    // For thumbnail, we use the R2 public URL or a direct URL
-    // In production, you'd have a public bucket or CDN. For now, we construct a URL.
-    setThumbnail(`https://${process.env.NEXT_PUBLIC_R2_PUBLIC_DOMAIN || "placeholder"}/${key}`)
+  const handleThumbnailUpload = (key: string, _name: string, _size: number, publicUrl: string) => {
+    setThumbnail(publicUrl)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

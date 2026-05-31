@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/toaster"
 
 interface FileUploaderProps {
   type: "product" | "thumbnail"
-  onUploadComplete: (fileKey: string, fileName: string, fileSize: number) => void
+  onUploadComplete: (fileKey: string, fileName: string, fileSize: number, publicUrl: string) => void
   accept?: string
 }
 
@@ -13,6 +13,41 @@ export function FileUploader({ type, onUploadComplete, accept }: FileUploaderPro
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const { addToast } = useToast()
+
+  const uploadToR2 = (
+    file: File,
+    uploadUrl: string
+  ): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open("PUT", uploadUrl, true)
+      xhr.setRequestHeader("Content-Type", file.type)
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setProgress(Math.round((event.loaded / event.total) * 100))
+        }
+      }
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve()
+        } else {
+          reject(new Error(`Upload failed: HTTP ${xhr.status} ${xhr.statusText}`))
+        }
+      }
+
+      xhr.onerror = () => {
+        reject(new Error("Upload failed: Network error. Check CORS settings in R2 bucket."))
+      }
+
+      xhr.ontimeout = () => {
+        reject(new Error("Upload failed: Request timeout."))
+      }
+
+      xhr.send(file)
+    })
+  }
 
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,47 +71,28 @@ export function FileUploader({ type, onUploadComplete, accept }: FileUploaderPro
         })
 
         if (!presignedRes.ok) {
-          const err = await presignedRes.json()
-          throw new Error(err.error || "Failed to get upload URL")
+          const err = await presignedRes.json().catch(() => ({}))
+          throw new Error(err.error || `Failed to get upload URL: HTTP ${presignedRes.status}`)
         }
 
-        const { uploadUrl, fileKey } = await presignedRes.json()
+        const { uploadUrl, fileKey, publicUrl } = await presignedRes.json()
 
-        // Upload directly to R2
-        const xhr = new XMLHttpRequest()
-        xhr.open("PUT", uploadUrl, true)
-        xhr.setRequestHeader("Content-Type", file.type)
+        // Upload directly to R2 using Promise-based XHR
+        await uploadToR2(file, uploadUrl)
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            setProgress(Math.round((event.loaded / event.total) * 100))
-          }
-        }
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            onUploadComplete(fileKey, file.name, file.size)
-            addToast({
-              title: "Upload berhasil",
-              description: file.name,
-            })
-          } else {
-            throw new Error("Upload failed")
-          }
-          setUploading(false)
-        }
-
-        xhr.onerror = () => {
-          throw new Error("Upload failed")
-        }
-
-        xhr.send(file)
+        onUploadComplete(fileKey, file.name, file.size, publicUrl)
+        addToast({
+          title: "Upload berhasil",
+          description: file.name,
+        })
       } catch (error: any) {
+        console.error("Upload error:", error)
         addToast({
           title: "Upload gagal",
-          description: error.message || "Terjadi kesalahan",
+          description: error.message || "Terjadi kesalahan saat upload",
           variant: "destructive",
         })
+      } finally {
         setUploading(false)
       }
     },

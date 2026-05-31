@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { getPresignedUploadUrl } from "@/lib/r2"
+import { getPresignedUploadUrl, getPublicUrl } from "@/lib/r2"
 import { z } from "zod"
 import { randomUUID } from "crypto"
 
@@ -77,8 +77,9 @@ export async function POST(req: Request) {
         : `thumbnails/${uuid}-${fileName}`
 
     const uploadUrl = await getPresignedUploadUrl(key, fileType)
+    const publicUrl = getPublicUrl(key)
 
-    return NextResponse.json({ uploadUrl, fileKey: key, fileName })
+    return NextResponse.json({ uploadUrl, fileKey: key, fileName, publicUrl })
   } catch (error) {
     console.error("Presigned upload error:", error)
     return NextResponse.json(
