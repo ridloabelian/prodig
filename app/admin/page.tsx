@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toaster"
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"products" | "withdrawals">("products")
+  const [activeTab, setActiveTab] = useState<"products" | "withdrawals" | "affiliateWithdrawals">("products")
   const [products, setProducts] = useState<any[]>([])
   const [withdrawals, setWithdrawals] = useState<any[]>([])
+  const [affiliateWithdrawals, setAffiliateWithdrawals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [productStatus, setProductStatus] = useState("PENDING")
   const { addToast } = useToast()
@@ -24,9 +25,19 @@ export default function AdminPage() {
     setWithdrawals(data.withdrawals || [])
   }
 
+  const fetchAffiliateWithdrawals = async () => {
+    const res = await fetch("/api/admin/affiliate-withdrawals")
+    const data = await res.json()
+    setAffiliateWithdrawals(data.withdrawals || [])
+  }
+
   const fetchData = async () => {
     setLoading(true)
-    await Promise.all([fetchProducts(), fetchWithdrawals()])
+    await Promise.all([
+      fetchProducts(),
+      fetchWithdrawals(),
+      fetchAffiliateWithdrawals(),
+    ])
     setLoading(false)
   }
 
@@ -64,6 +75,21 @@ export default function AdminPage() {
     }
   }
 
+  const handleAffiliateWithdrawalAction = async (id: string, status: "PROCESSED" | "REJECTED") => {
+    const res = await fetch(`/api/admin/affiliate-withdrawals?id=${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    })
+
+    if (res.ok) {
+      addToast({ title: `Penarikan affiliate ${status === "PROCESSED" ? "diproses" : "ditolak"}` })
+      fetchAffiliateWithdrawals()
+    } else {
+      addToast({ title: "Gagal", description: "Terjadi kesalahan", variant: "destructive" })
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -81,17 +107,21 @@ export default function AdminPage() {
 
       <div className="border-b mb-4">
         <div className="flex gap-4">
-          {(["products", "withdrawals"] as const).map((tab) => (
+          {([
+            { key: "products", label: "Moderasi Produk" },
+            { key: "withdrawals", label: "Penarikan Seller" },
+            { key: "affiliateWithdrawals", label: "Penarikan Affiliate" },
+          ] as const).map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
               className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab
+                activeTab === tab.key
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab === "products" ? "Moderasi Produk" : "Penarikan Dana"}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -217,6 +247,58 @@ export default function AdminPage() {
           {withdrawals.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               Tidak ada permintaan penarikan
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "affiliateWithdrawals" && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4">Affiliate</th>
+                <th className="text-left py-3 px-4">Jumlah</th>
+                <th className="text-left py-3 px-4">Bank</th>
+                <th className="text-left py-3 px-4">Rekening</th>
+                <th className="text-left py-3 px-4">Tanggal</th>
+                <th className="text-left py-3 px-4">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {affiliateWithdrawals.map((w) => (
+                <tr key={w.id} className="border-b">
+                  <td className="py-3 px-4">{w.affiliate.user.name || w.affiliate.user.email}</td>
+                  <td className="py-3 px-4">Rp {w.amount.toLocaleString("id-ID")}</td>
+                  <td className="py-3 px-4">{w.affiliate.user.bankName || "-"}</td>
+                  <td className="py-3 px-4">{w.affiliate.user.bankAccount || "-"}</td>
+                  <td className="py-3 px-4">
+                    {new Date(w.createdAt).toLocaleDateString("id-ID")}
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleAffiliateWithdrawalAction(w.id, "PROCESSED")}
+                      >
+                        Proses
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleAffiliateWithdrawalAction(w.id, "REJECTED")}
+                      >
+                        Tolak
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {affiliateWithdrawals.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              Tidak ada permintaan penarikan affiliate
             </div>
           )}
         </div>

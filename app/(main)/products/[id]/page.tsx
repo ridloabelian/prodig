@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,20 @@ import { useToast } from "@/components/ui/toaster"
 
 export default function ProductDetailPage() {
   const { id } = useParams()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const { addToast } = useToast()
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [checkingOut, setCheckingOut] = useState(false)
+
+  useEffect(() => {
+    // Track affiliate ref from URL
+    const ref = searchParams.get("ref")
+    if (ref) {
+      document.cookie = `affiliate_code=${ref}; max-age=${30 * 24 * 60 * 60}; path=/`
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetch(`/api/products/${id}`)
@@ -38,10 +47,16 @@ export default function ProductDetailPage() {
 
     setCheckingOut(true)
     try {
+      // Read affiliate code from cookie
+      const affiliateCode = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("affiliate_code="))
+        ?.split("=")[1]
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: id }),
+        body: JSON.stringify({ productId: id, affiliateCode }),
       })
 
       const data = await res.json()

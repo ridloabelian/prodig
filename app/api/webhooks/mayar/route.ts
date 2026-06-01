@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     }
 
     if (status === "PAID" || status === "SETTLED") {
-      await prisma.$transaction([
+      const updates: any[] = [
         prisma.transaction.update({
           where: { id: transaction.id },
           data: {
@@ -63,7 +63,21 @@ export async function POST(req: Request) {
           where: { id: transaction.productId },
           data: { salesCount: { increment: 1 } },
         }),
-      ])
+      ]
+
+      if (transaction.affiliateId && transaction.affiliateCommission > 0) {
+        updates.push(
+          prisma.affiliate.update({
+            where: { id: transaction.affiliateId },
+            data: {
+              totalEarnings: { increment: transaction.affiliateCommission },
+              totalReferrals: { increment: 1 },
+            },
+          })
+        )
+      }
+
+      await prisma.$transaction(updates)
 
       // Watermark PDF if applicable
       let watermarkedFileKey: string | undefined

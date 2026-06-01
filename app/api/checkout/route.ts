@@ -7,6 +7,7 @@ import { z } from "zod"
 
 const checkoutSchema = z.object({
   productId: z.string().uuid(),
+  affiliateCode: z.string().optional(),
 })
 
 export async function POST(req: Request) {
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const { productId } = parsed.data
+    const { productId, affiliateCode } = parsed.data
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -54,9 +55,22 @@ export async function POST(req: Request) {
       )
     }
 
+    // Resolve affiliate
+    let affiliateId: string | undefined
+    let affiliateCommission = 0
+    if (affiliateCode) {
+      const affiliate = await prisma.affiliate.findUnique({
+        where: { code: affiliateCode },
+      })
+      if (affiliate && affiliate.status === "ACTIVE" && affiliate.userId !== session.user.id) {
+        affiliateId = affiliate.id
+        affiliateCommission = Math.floor(product.price * affiliate.commissionPercent / 100)
+      }
+    }
+
     const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || "10")
     const commission = Math.floor(product.price * platformFeePercent / 100)
-    const netAmount = product.price - commission
+    const netAmount = product.price - commission - affiliateCommission
     const ppn = Math.floor(product.price * 11 / 100)
     const totalAmount = product.price + ppn
 
@@ -69,6 +83,8 @@ export async function POST(req: Request) {
         amount: totalAmount,
         commission,
         netAmount,
+        affiliateId,
+        affiliateCommission,
         status: "PENDING",
       },
     })

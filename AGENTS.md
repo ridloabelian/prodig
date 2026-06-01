@@ -114,7 +114,6 @@ buyer@prodig.id / password123
 
 ## Roadmap (not yet implemented)
 - WhatsApp notification
-- Affiliate/subscription
 
 ---
 *Last updated: 2026-06-01*

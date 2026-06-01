@@ -58,12 +58,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-  products     Product[]
-  purchases    Transaction[] @relation("BuyerTransactions")
-  reviews      Review[]
-  withdrawals  Withdrawal[]
+  accounts      Account[]
+  sessions      Session[]
+  products      Product[]
+  purchases     Transaction[] @relation("BuyerTransactions")
+  reviews       Review[]
+  withdrawals   Withdrawal[]
+  affiliate     Affiliate?
 }
 
 enum UserRole {
@@ -123,9 +124,12 @@ model Transaction {
   subtotal        Int      @default(0) // harga dasar produk
   ppn             Int      @default(0) // PPN 11%
   amount          Int // total bayar buyer (subtotal + ppn)
-  commission      Int      @default(0) // 10% platform fee dari subtotal
-  netAmount       Int      @default(0) // subtotal - commission (diterima seller)
-  mayarPaymentId  String?
+  commission        Int      @default(0) // 10% platform fee dari subtotal
+  netAmount         Int      @default(0) // subtotal - commission - affiliateCommission (diterima seller)
+  affiliateId       String?
+  affiliate         Affiliate? @relation(fields: [affiliateId], references: [id])
+  affiliateCommission Int    @default(0) // 20% komisi affiliate dari subtotal
+  mayarPaymentId    String?
   mayarInvoiceUrl String?
   status          TransactionStatus @default(PENDING)
   downloadToken      String?  @unique @default(uuid())
@@ -140,6 +144,7 @@ model Transaction {
 
   @@index([buyerId, status])
   @@index([mayarPaymentId])
+  @@index([affiliateId])
 }
 
 enum TransactionStatus {
@@ -181,6 +186,39 @@ enum WithdrawalStatus {
   PENDING
   PROCESSED
   REJECTED
+}
+
+model Affiliate {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  code              String   @unique @default(cuid())
+  commissionPercent Int      @default(20)
+  status            AffiliateStatus @default(ACTIVE)
+  totalEarnings     Int      @default(0)
+  totalReferrals    Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  transactions      Transaction[]
+  withdrawals       AffiliateWithdrawal[]
+}
+
+enum AffiliateStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model AffiliateWithdrawal {
+  id          String   @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
+  amount      Int
+  status      WithdrawalStatus @default(PENDING)
+  notes       String?
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model DownloadLog {
