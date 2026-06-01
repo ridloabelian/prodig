@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPurchaseSuccessEmail } from "@/lib/email"
 import { addHours } from "date-fns"
+import { watermarkPdf, isPdfFile } from "@/lib/watermark"
 
 export async function POST(req: Request) {
   try {
@@ -63,6 +64,30 @@ export async function POST(req: Request) {
           data: { salesCount: { increment: 1 } },
         }),
       ])
+
+      // Watermark PDF if applicable
+      let watermarkedFileKey: string | undefined
+      try {
+        if (isPdfFile(transaction.product.fileKey)) {
+          const wKey = `watermarked/${transaction.id}/${transaction.product.fileKey}`
+          await watermarkPdf(
+            transaction.product.fileKey,
+            wKey,
+            {
+              buyerEmail: transaction.buyer.email || "",
+              transactionId: transaction.id,
+            }
+          )
+          watermarkedFileKey = wKey
+          await prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { watermarkedFileKey: wKey },
+          })
+        }
+      } catch (wmError) {
+        console.error("Watermarking failed (non-blocking):", wmError)
+        // Continue — buyer still gets original file
+      }
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
       await sendPurchaseSuccessEmail(transaction.buyer.email, {

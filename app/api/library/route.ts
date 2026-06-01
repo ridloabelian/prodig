@@ -32,6 +32,7 @@ export async function GET(req: Request) {
             id: true,
             title: true,
             thumbnail: true,
+            fileName: true,
             seller: {
               select: { name: true },
             },

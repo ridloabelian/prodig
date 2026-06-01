@@ -86,8 +86,9 @@ export async function GET(req: Request) {
       )
     }
 
-    // Get presigned URL
-    const downloadUrl = await getPresignedDownloadUrl(transaction.product.fileKey, 300)
+    // Use watermarked version if available, otherwise original
+    const fileKey = transaction.watermarkedFileKey || transaction.product.fileKey
+    const downloadUrl = await getPresignedDownloadUrl(fileKey, 300)
 
     // Log download
     await prisma.downloadLog.create({

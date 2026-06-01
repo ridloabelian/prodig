@@ -128,10 +128,11 @@ model Transaction {
   mayarPaymentId  String?
   mayarInvoiceUrl String?
   status          TransactionStatus @default(PENDING)
-  downloadToken   String?  @unique @default(uuid())
-  tokenExpiresAt  DateTime?
-  downloadCount   Int      @default(0)
-  lastDownloadAt  DateTime?
+  downloadToken      String?  @unique @default(uuid())
+  tokenExpiresAt     DateTime?
+  downloadCount      Int      @default(0)
+  lastDownloadAt     DateTime?
+  watermarkedFileKey String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

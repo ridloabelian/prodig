@@ -67,6 +67,11 @@ export default function LibraryPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Dibeli {new Date(trx.createdAt).toLocaleDateString("id-ID")}
               </p>
+              {trx.product.fileName?.toLowerCase().endsWith(".pdf") && (
+                <p className="text-xs text-blue-600 mt-1">
+                  {trx.watermarkedFileKey ? "🔒 PDF Watermarked" : "📄 PDF"}
+                </p>
+              )}
               <a
                 href={`/api/download?trx_id=${trx.id}`}
                 className="mt-3 w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"

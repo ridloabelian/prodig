@@ -113,10 +113,14 @@ buyer@prodig.id / password123
 ```
 
 ## Roadmap (not yet implemented)
-- Watermark PDF auto
 - WhatsApp notification
 - Affiliate/subscription
 - Full-text search / AI recommendation
 
 ---
 *Last updated: 2026-06-01*
+
+## Implemented Recently
+- **Proxy convention** (Next.js 16) — replaced deprecated `middleware.ts`
+- **PPN 11%** — checkout includes tax breakdown, stored in `Transaction.subtotal/ppn/amount`
+- **Watermark PDF auto** — post-payment webhook watermarks PDFs with buyer email + transaction ID
