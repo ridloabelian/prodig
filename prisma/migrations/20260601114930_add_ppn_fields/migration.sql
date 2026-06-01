@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Transaction" ADD COLUMN     "ppn" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "subtotal" INTEGER NOT NULL DEFAULT 0;
