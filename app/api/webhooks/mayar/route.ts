@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma"
 import { sendPurchaseSuccessEmail } from "@/lib/email"
 import { addHours } from "date-fns"
 import { watermarkPdf, isPdfFile } from "@/lib/watermark"
+import {
+  notifyBuyerPaymentSuccess,
+  notifySellerNewSale,
+  notifyAffiliateConversion,
+} from "@/lib/conviq"
 
 export async function POST(req: Request) {
   try {
@@ -41,7 +46,8 @@ export async function POST(req: Request) {
       where: { mayarPaymentId: paymentId },
       include: {
         buyer: true,
-        product: true,
+        product: { include: { seller: true } },
+        affiliate: { include: { user: true } },
       },
     })
 
@@ -104,12 +110,44 @@ export async function POST(req: Request) {
       }
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      const downloadUrl = `${appUrl}/download?token=${transaction.downloadToken}`
+
+      // Email notification
       await sendPurchaseSuccessEmail(transaction.buyer.email, {
         productTitle: transaction.product.title,
         productPrice: transaction.subtotal,
-        downloadUrl: `${appUrl}/download?token=${transaction.downloadToken}`,
+        downloadUrl,
         libraryUrl: `${appUrl}/library`,
       })
+
+      // WhatsApp notifications (non-blocking)
+      try {
+        await Promise.all([
+          notifyBuyerPaymentSuccess(
+            transaction.buyer.whatsapp,
+            transaction.buyer.name || "Pembeli",
+            transaction.product.title,
+            downloadUrl
+          ),
+          notifySellerNewSale(
+            transaction.product.seller.whatsapp,
+            transaction.product.seller.name || "Penjual",
+            transaction.product.title,
+            transaction.buyer.name || "Pembeli",
+            transaction.amount
+          ),
+          transaction.affiliate
+            ? notifyAffiliateConversion(
+                transaction.affiliate.user.whatsapp,
+                transaction.affiliate.user.name || "Affiliate",
+                transaction.product.title,
+                transaction.affiliateCommission
+              )
+            : Promise.resolve(),
+        ])
+      } catch (waError) {
+        console.error("WhatsApp notification error (non-blocking):", waError)
+      }
     } else if (status === "EXPIRED") {
       await prisma.transaction.update({
         where: { id: transaction.id },

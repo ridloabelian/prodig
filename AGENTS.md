@@ -112,8 +112,14 @@ seller@prodig.id / password123
 buyer@prodig.id / password123
 ```
 
-## Roadmap (not yet implemented)
-- WhatsApp notification
+## WhatsApp Notifications (via Conviq)
+- Webhook Mayar mengirim WA ke **buyer** (pembayaran berhasil + link download), **seller** (pembelian baru), dan **affiliate** (conversion baru)
+- Service: `lib/conviq.ts` — Chatwoot API client
+- Env vars: `CONVIQ_BASE_URL`, `CONVIQ_ACCOUNT_ID`, `CONVIQ_API_KEY`, `CONVIQ_WHATSAPP_INBOX_ID`
+- Graceful degrade: jika Conviq tidak dikonfigurasi, notifikasi WA di-skip tanpa error
+
+---
+*Roadmap cleared — MVP feature-complete!*
 
 ---
 *Last updated: 2026-06-01*
