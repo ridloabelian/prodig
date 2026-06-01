@@ -133,8 +133,24 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          <div className="text-3xl font-bold text-primary">
-            Rp {product.price.toLocaleString("id-ID")}
+          <div className="space-y-2">
+            <div className="text-3xl font-bold text-primary">
+              Rp {product.price.toLocaleString("id-ID")}
+            </div>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <div className="flex justify-between gap-4">
+                <span>Harga Produk</span>
+                <span>Rp {product.price.toLocaleString("id-ID")}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>PPN 11%</span>
+                <span>Rp {Math.floor(product.price * 0.11).toLocaleString("id-ID")}</span>
+              </div>
+              <div className="flex justify-between gap-4 font-semibold text-foreground border-t pt-1">
+                <span>Total</span>
+                <span>Rp {(product.price + Math.floor(product.price * 0.11)).toLocaleString("id-ID")}</span>
+              </div>
+            </div>
           </div>
 
           <div className="prose prose-sm max-w-none">

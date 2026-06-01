@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
       await sendPurchaseSuccessEmail(transaction.buyer.email, {
         productTitle: transaction.product.title,
-        productPrice: transaction.amount,
+        productPrice: transaction.subtotal,
         downloadUrl: `${appUrl}/download?token=${transaction.downloadToken}`,
         libraryUrl: `${appUrl}/library`,
       })

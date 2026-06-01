@@ -29,7 +29,7 @@ getPublicUrl(key)                                       // custom domain || S3 e
 
 ### Role-Based Route Protection
 ```ts
-// middleware.ts
+// proxy.ts (Next.js 16 convention, replaces middleware.ts)
 /sell, /dashboard    → SELLER or ADMIN
 /admin               → ADMIN only
 /library             → any authenticated
@@ -62,6 +62,13 @@ Key enums:
 - `UserRole`: BUYER, SELLER, ADMIN
 - `ProductStatus`: PENDING, APPROVED, REJECTED, HIDDEN
 - `TransactionStatus`: PENDING, PAID, FAILED, EXPIRED, REFUNDED
+
+### Transaction Fields
+- `subtotal` — harga dasar produk
+- `ppn` — PPN 11%
+- `amount` — total bayar buyer (subtotal + ppn)
+- `commission` — platform fee % dari subtotal
+- `netAmount` — subtotal - commission (diterima seller)
 
 ## API Routes (memory map)
 ```
@@ -108,9 +115,8 @@ buyer@prodig.id / password123
 ## Roadmap (not yet implemented)
 - Watermark PDF auto
 - WhatsApp notification
-- PPN 11%
 - Affiliate/subscription
 - Full-text search / AI recommendation
 
 ---
-*Last updated: 2026-05-31*
+*Last updated: 2026-06-01*

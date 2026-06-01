@@ -120,9 +120,11 @@ model Transaction {
   buyer           User     @relation("BuyerTransactions", fields: [buyerId], references: [id])
   productId       String
   product         Product  @relation(fields: [productId], references: [id])
-  amount          Int // harga final yang dibayar buyer
-  commission      Int      @default(0) // 10% platform fee
-  netAmount       Int      @default(0) // amount - commission (diterima seller)
+  subtotal        Int      @default(0) // harga dasar produk
+  ppn             Int      @default(0) // PPN 11%
+  amount          Int // total bayar buyer (subtotal + ppn)
+  commission      Int      @default(0) // 10% platform fee dari subtotal
+  netAmount       Int      @default(0) // subtotal - commission (diterima seller)
   mayarPaymentId  String?
   mayarInvoiceUrl String?
   status          TransactionStatus @default(PENDING)

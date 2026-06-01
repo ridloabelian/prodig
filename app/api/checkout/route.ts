@@ -57,12 +57,16 @@ export async function POST(req: Request) {
     const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || "10")
     const commission = Math.floor(product.price * platformFeePercent / 100)
     const netAmount = product.price - commission
+    const ppn = Math.floor(product.price * 11 / 100)
+    const totalAmount = product.price + ppn
 
     const transaction = await prisma.transaction.create({
       data: {
         buyerId: session.user.id,
         productId,
-        amount: product.price,
+        subtotal: product.price,
+        ppn,
+        amount: totalAmount,
         commission,
         netAmount,
         status: "PENDING",
@@ -72,7 +76,7 @@ export async function POST(req: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
     const mayarRes = await createMayarInvoice({
-      amount: product.price,
+      amount: totalAmount,
       description: `Pembelian ${product.title} di Prodig.id`,
       customerName: session.user.name || "Customer",
       customerEmail: session.user.email || "",
