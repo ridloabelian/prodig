@@ -65,53 +65,89 @@ export async function GET(req: Request) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50)
     const skip = (page - 1) * limit
 
-    const where: any = { status: "APPROVED" }
+    let products: any[] = []
+    let total = 0
 
     if (q) {
-      where.OR = [
-        { title: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-      ]
-    }
+      // Full-text search using PostgreSQL tsvector
+      const searchResults = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Product"
+        WHERE status = 'APPROVED'
+          AND to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))
+              @@ plainto_tsquery('simple', ${q})
+        ORDER BY ts_rank(
+          to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, '')),
+          plainto_tsquery('simple', ${q})
+        ) DESC
+        LIMIT ${limit} OFFSET ${skip}
+      `
 
-    if (category) {
-      where.category = { slug: category }
-    }
+      const countResult = await prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(*) as count FROM "Product"
+        WHERE status = 'APPROVED'
+          AND to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))
+              @@ plainto_tsquery('simple', ${q})
+      `
+      total = Number(countResult[0].count)
 
-    let orderBy: any = {}
-    switch (sort) {
-      case "bestselling":
-        orderBy = { salesCount: "desc" }
-        break
-      case "price_asc":
-        orderBy = { price: "asc" }
-        break
-      case "price_desc":
-        orderBy = { price: "desc" }
-        break
-      default:
-        orderBy = { createdAt: "desc" }
-    }
+      const ids = searchResults.map((r) => r.id)
+      if (ids.length > 0) {
+        const fetched = await prisma.product.findMany({
+          where: { id: { in: ids } },
+          include: {
+            seller: { select: { id: true, name: true, image: true } },
+            category: { select: { id: true, name: true, slug: true } },
+            reviews: { select: { rating: true } },
+          },
+        })
+        // Preserve search ranking order
+        const productMap = new Map(fetched.map((p) => [p.id, p]))
+        products = ids.map((id) => productMap.get(id)).filter(Boolean) as any[]
+      }
+    } else {
+      const where: any = { status: "APPROVED" }
 
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        orderBy,
-        skip,
-        take: limit,
-        include: {
-          seller: { select: { id: true, name: true, image: true } },
-          category: { select: { id: true, name: true, slug: true } },
-          reviews: { select: { rating: true } },
-        },
-      }),
-      prisma.product.count({ where }),
-    ])
+      if (category) {
+        where.category = { slug: category }
+      }
+
+      let orderBy: any = {}
+      switch (sort) {
+        case "bestselling":
+          orderBy = { salesCount: "desc" }
+          break
+        case "price_asc":
+          orderBy = { price: "asc" }
+          break
+        case "price_desc":
+          orderBy = { price: "desc" }
+          break
+        default:
+          orderBy = { createdAt: "desc" }
+      }
+
+      const [fetched, count] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limit,
+          include: {
+            seller: { select: { id: true, name: true, image: true } },
+            category: { select: { id: true, name: true, slug: true } },
+            reviews: { select: { rating: true } },
+          },
+        }),
+        prisma.product.count({ where }),
+      ])
+      products = fetched
+      total = count
+    }
 
     const mapped = products.map((p) => ({
       ...p,
       avgRating: p.reviews.length
-        ? p.reviews.reduce((sum, r) => sum + r.rating, 0) / p.reviews.length
+        ? p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / p.reviews.length
         : 0,
       reviewCount: p.reviews.length,
     }))
