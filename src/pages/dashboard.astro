@@ -1,0 +1,626 @@
+---
+export const prerender = false;
+
+import Layout from "../layouts/Layout.astro";
+import { getDb } from "../db";
+import { products, transactions, withdrawals, categories, users } from "../db/schema";
+import { eq, and, desc, sum, count } from "drizzle-orm";
+
+const user = Astro.locals.user;
+if (!user || (user.role !== "SELLER" && user.role !== "ADMIN")) {
+  return Astro.redirect("/login?redirect=" + encodeURIComponent(Astro.url.pathname));
+}
+
+let stats: any = null;
+let productsList: any[] = [];
+let salesList: any[] = [];
+let withdrawalsList: any[] = [];
+let sellerInfo: any = null;
+let errorMsg = "";
+
+try {
+  const db = getDb(Astro.locals.runtime.env);
+
+  // 1. Fetch Seller Info (Bank Details)
+  sellerInfo = await db
+    .select({
+      bankName: users.bankName,
+      bankAccount: users.bankAccount,
+    })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .get();
+
+  // 2. Fetch Dashboard Stats
+  const [totalProductsRes, totalSalesRes, totalRevenueRes, pendingWithdrawalRes, processedWithdrawalRes] =
+    await Promise.all([
+      db.select({ count: count() }).from(products).where(eq(products.sellerId, user.id)).get(),
+      db
+        .select({ count: count() })
+        .from(transactions)
+        .leftJoin(products, eq(transactions.productId, products.id))
+        .where(and(eq(products.sellerId, user.id), eq(transactions.status, "PAID")))
+        .get(),
+      db
+        .select({ sum: sum(transactions.netAmount) })
+        .from(transactions)
+        .leftJoin(products, eq(transactions.productId, products.id))
+        .where(and(eq(products.sellerId, user.id), eq(transactions.status, "PAID")))
+        .get(),
+      db
+        .select({ sum: sum(withdrawals.amount) })
+        .from(withdrawals)
+        .where(and(eq(withdrawals.sellerId, user.id), eq(withdrawals.status, "PENDING")))
+        .get(),
+      db
+        .select({ sum: sum(withdrawals.amount) })
+        .from(withdrawals)
+        .where(and(eq(withdrawals.sellerId, user.id), eq(withdrawals.status, "PROCESSED")))
+        .get(),
+    ]);
+
+  const totalProducts = totalProductsRes?.count || 0;
+  const totalSales = totalSalesRes?.count || 0;
+  const revenue = Number(totalRevenueRes?.sum || 0);
+  const pendingWithdrawal = Number(pendingWithdrawalRes?.sum || 0);
+  const processedWithdrawal = Number(processedWithdrawalRes?.sum || 0);
+  const availableBalance = revenue - processedWithdrawal;
+
+  stats = {
+    totalProducts,
+    totalSales,
+    totalRevenue: revenue,
+    pendingWithdrawal,
+    availableBalance,
+  };
+
+  // 3. Fetch Seller Products
+  productsList = await db
+    .select({
+      id: products.id,
+      title: products.title,
+      price: products.price,
+      status: products.status,
+      salesCount: products.salesCount,
+      viewCount: products.viewCount,
+      createdAt: products.createdAt,
+      categoryName: categories.name,
+    })
+    .from(products)
+    .leftJoin(categories, eq(products.categoryId, categories.id))
+    .where(eq(products.sellerId, user.id))
+    .orderBy(desc(products.createdAt));
+
+  // 4. Fetch Seller Sales Transactions
+  salesList = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      netAmount: transactions.netAmount,
+      createdAt: transactions.createdAt,
+      buyerName: users.name,
+      productTitle: products.title,
+    })
+    .from(transactions)
+    .leftJoin(products, eq(transactions.productId, products.id))
+    .leftJoin(users, eq(transactions.buyerId, users.id))
+    .where(and(eq(products.sellerId, user.id), eq(transactions.status, "PAID")))
+    .orderBy(desc(transactions.createdAt));
+
+  // 5. Fetch Seller Withdrawals History
+  withdrawalsList = await db
+    .select()
+    .from(withdrawals)
+    .where(eq(withdrawals.sellerId, user.id))
+    .orderBy(desc(withdrawals.createdAt));
+} catch (e: any) {
+  console.error("Gagal memuat dashboard seller:", e);
+  errorMsg = e.message;
+}
+
+// Helpers for formatted currency
+const formatIDR = (val: number) => {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(val);
+};
+---
+
+<Layout title="Dashboard Seller - Prodig">
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <div class="flex items-center">
+          <a href="/" class="flex items-center gap-2">
+            <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-2xl font-extrabold text-transparent tracking-wider">
+              PRODIG
+            </span>
+          </a>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="/products" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Jelajahi
+          </a>
+          <a href="/library" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Library Pembeli
+          </a>
+          <span class="text-sm text-slate-400">|</span>
+          <span class="text-sm font-bold text-slate-200">{user.name}</span>
+          <button 
+            id="logout-btn"
+            class="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-1.5 text-xs font-bold text-slate-350 transition-all hover:border-slate-700 hover:text-white"
+          >
+            Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="space-y-8">
+      <!-- Title header -->
+      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 class="text-3xl font-extrabold text-white leading-tight">Seller Dashboard</h1>
+          <p class="mt-2 text-sm text-slate-400">Pantau penjualan Anda, kelola katalog produk, dan tarik penghasilan Anda.</p>
+        </div>
+        <div>
+          <a href="/sell" class="rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-500/20 hover:bg-violet-500 transition-all block text-center">
+            + Jual Produk Baru
+          </a>
+        </div>
+      </div>
+
+      {errorMsg && (
+        <div class="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-400 text-sm">
+          <strong>Database Error:</strong> {errorMsg}
+        </div>
+      )}
+
+      <!-- Stats Cards -->
+      {stats && (
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <!-- Card 1: Revenue -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl space-y-2">
+            <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Total Pendapatan Bersih</span>
+            <h3 class="text-2xl font-black text-white">{formatIDR(stats.totalRevenue)}</h3>
+            <p class="text-[10px] text-slate-500">Sesudah potongan platform fee</p>
+          </div>
+
+          <!-- Card 2: Balance -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl space-y-2">
+            <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Saldo Tersedia</span>
+            <h3 class="text-2xl font-black text-violet-400">{formatIDR(stats.availableBalance)}</h3>
+            <p class="text-[10px] text-slate-500">Revenue dikurangi penarikan terproses</p>
+          </div>
+
+          <!-- Card 3: Sales count -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl space-y-2">
+            <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Produk Terjual</span>
+            <h3 class="text-2xl font-black text-white">{stats.totalSales} Transaksi</h3>
+            <p class="text-[10px] text-slate-500">Jumlah total pesanan sukses</p>
+          </div>
+
+          <!-- Card 4: Product count -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl space-y-2">
+            <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Total Produk</span>
+            <h3 class="text-2xl font-black text-white">{stats.totalProducts} Item</h3>
+            <p class="text-[10px] text-slate-500">Produk terdaftar di katalog Anda</p>
+          </div>
+        </div>
+      )}
+
+      <!-- Tabbed Menu -->
+      <div class="space-y-6">
+        <!-- Tabs Header -->
+        <div class="border-b border-slate-800/80">
+          <div class="flex gap-6">
+            <button 
+              id="tab-btn-products"
+              class="tab-btn pb-3 text-sm font-bold border-b-2 transition-colors border-violet-500 text-violet-400"
+            >
+              Produk Saya
+            </button>
+            <button 
+              id="tab-btn-sales"
+              class="tab-btn pb-3 text-sm font-bold border-b-2 transition-colors border-transparent text-slate-400 hover:text-white"
+            >
+              Uang Masuk / Penjualan
+            </button>
+            <button 
+              id="tab-btn-withdrawals"
+              class="tab-btn pb-3 text-sm font-bold border-b-2 transition-colors border-transparent text-slate-400 hover:text-white"
+            >
+              Keuangan & Penarikan
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT: PRODUCTS -->
+        <div id="tab-content-products" class="tab-pane space-y-4">
+          {productsList.length === 0 ? (
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/10 p-12 text-center text-slate-400">
+              Anda belum mendaftarkan produk apapun. <a href="/sell" class="text-violet-400 underline">Mulai unggah produk digital Anda</a>.
+            </div>
+          ) : (
+            <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+              <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr class="border-b border-slate-800 bg-slate-900/40 text-slate-400">
+                    <th class="p-4 font-semibold">Produk</th>
+                    <th class="p-4 font-semibold">Kategori</th>
+                    <th class="p-4 font-semibold">Harga</th>
+                    <th class="p-4 font-semibold text-center">Dilihat</th>
+                    <th class="p-4 font-semibold text-center">Terjual</th>
+                    <th class="p-4 font-semibold">Status</th>
+                    <th class="p-4 font-semibold">Tanggal Rilis</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                  {productsList.map((prod) => (
+                    <tr class="hover:bg-slate-900/20 text-slate-300">
+                      <td class="p-4 font-bold text-white max-w-xs truncate">
+                        {prod.status === "APPROVED" ? (
+                          <a href={`/products/${prod.id}`} class="hover:text-violet-400 transition-colors">
+                            {prod.title}
+                          </a>
+                        ) : (
+                          prod.title
+                        )}
+                      </td>
+                      <td class="p-4">{prod.categoryName || "N/A"}</td>
+                      <td class="p-4">{formatIDR(prod.price)}</td>
+                      <td class="p-4 text-center font-mono">{prod.viewCount}</td>
+                      <td class="p-4 text-center font-mono">{prod.salesCount}</td>
+                      <td class="p-4">
+                        {prod.status === "APPROVED" && (
+                          <span class="rounded bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-400 border border-green-500/20">Approved</span>
+                        )}
+                        {prod.status === "PENDING" && (
+                          <span class="rounded bg-yellow-500/10 px-2 py-0.5 text-xs font-bold text-yellow-400 border border-yellow-500/20">Pending</span>
+                        )}
+                        {prod.status === "REJECTED" && (
+                          <span class="rounded bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-400 border border-red-500/20">Rejected</span>
+                        )}
+                        {prod.status === "HIDDEN" && (
+                          <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-400">Hidden</span>
+                        )}
+                      </td>
+                      <td class="p-4 text-xs text-slate-400">
+                        {new Date(prod.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <!-- TAB CONTENT: SALES -->
+        <div id="tab-content-sales" class="tab-pane hidden space-y-4">
+          {salesList.length === 0 ? (
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/10 p-12 text-center text-slate-400">
+              Belum ada penjualan produk digital yang tercatat.
+            </div>
+          ) : (
+            <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+              <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr class="border-b border-slate-800 bg-slate-900/40 text-slate-400">
+                    <th class="p-4 font-semibold">Order ID</th>
+                    <th class="p-4 font-semibold">Produk</th>
+                    <th class="p-4 font-semibold">Pembeli</th>
+                    <th class="p-4 font-semibold">Total Bayar</th>
+                    <th class="p-4 font-semibold text-violet-400">Pendapatan Bersih</th>
+                    <th class="p-4 font-semibold">Waktu Pembayaran</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-slate-350">
+                  {salesList.map((sale) => (
+                    <tr class="hover:bg-slate-900/20">
+                      <td class="p-4 font-mono text-xs">{sale.id}</td>
+                      <td class="p-4 font-bold text-white max-w-xs truncate">{sale.productTitle || "Produk Digital"}</td>
+                      <td class="p-4 text-slate-200">{sale.buyerName || "Pembeli"}</td>
+                      <td class="p-4">{formatIDR(sale.amount)}</td>
+                      <td class="p-4 font-bold text-violet-400">{formatIDR(sale.netAmount)}</td>
+                      <td class="p-4 text-xs text-slate-400">
+                        {new Date(sale.createdAt).toLocaleString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <!-- TAB CONTENT: WITHDRAWALS -->
+        <div id="tab-content-withdrawals" class="tab-pane hidden space-y-8">
+          <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <!-- Left Side: Forms -->
+            <div class="space-y-6">
+              <!-- Form 1: Bank Profile Details -->
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/30 p-6 backdrop-blur-xl space-y-4">
+                <div>
+                  <h3 class="text-base font-bold text-white">1. Pengaturan Rekening Bank</h3>
+                  <p class="text-xs text-slate-400 mt-1">Saldo yang Anda tarik akan ditransfer secara manual ke rekening ini oleh Admin.</p>
+                </div>
+
+                <div id="bank-form-message" class="hidden rounded-xl border p-3 text-xs"></div>
+
+                <form id="bank-form" class="space-y-4">
+                  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label for="bankName" class="block text-xs font-semibold text-slate-400">Nama Bank / E-Wallet</label>
+                      <input 
+                        type="text" 
+                        id="bankName" 
+                        name="bankName" 
+                        required 
+                        value={sellerInfo?.bankName || ""}
+                        placeholder="e.g. Bank BCA, Mandiri, GoPay"
+                        class="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-xs text-slate-200 outline-none focus:border-violet-500"
+                      />
+                    </div>
+                    <div>
+                      <label for="bankAccount" class="block text-xs font-semibold text-slate-400">Nomor Rekening</label>
+                      <input 
+                        type="text" 
+                        id="bankAccount" 
+                        name="bankAccount" 
+                        required 
+                        value={sellerInfo?.bankAccount || ""}
+                        placeholder="e.g. 7140889211"
+                        class="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-xs text-slate-200 outline-none focus:border-violet-500"
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    id="save-bank-btn"
+                    class="rounded-xl bg-slate-900 border border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-800 transition-all w-full sm:w-auto"
+                  >
+                    Simpan Informasi Rekening
+                  </button>
+                </form>
+              </div>
+
+              <!-- Form 2: Request Withdrawal -->
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/30 p-6 backdrop-blur-xl space-y-4">
+                <div>
+                  <h3 class="text-base font-bold text-white">2. Ajukan Penarikan Dana</h3>
+                  <p class="text-xs text-slate-400 mt-1">Masukkan nominal saldo yang ingin Anda tarik. Minimal penarikan Rp 50.000.</p>
+                </div>
+
+                <div id="wd-form-message" class="hidden rounded-xl border p-3 text-xs"></div>
+
+                <form id="wd-form" class="space-y-4">
+                  <div>
+                    <label for="amount" class="block text-xs font-semibold text-slate-400">Nominal Penarikan (Rp)</label>
+                    <input 
+                      type="number" 
+                      id="amount" 
+                      name="amount" 
+                      required 
+                      min="50000"
+                      max={stats?.availableBalance || 0}
+                      placeholder="e.g. 100000"
+                      class="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 placeholder-slate-650"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    id="submit-wd-btn"
+                    disabled={!stats || stats.availableBalance < 50000 || !sellerInfo?.bankAccount}
+                    class="rounded-xl bg-violet-600 px-4 py-3 text-xs font-bold text-white hover:bg-violet-500 transition-all w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {!sellerInfo?.bankAccount 
+                      ? "Lengkapi rekening bank Anda terlebih dahulu" 
+                      : (stats && stats.availableBalance < 50000) 
+                        ? "Saldo minimum Rp 50.000 belum tercapai" 
+                        : "Kirim Permintaan Penarikan"
+                    }
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Right Side: Withdrawal History Table -->
+            <div class="space-y-4">
+              <h3 class="text-base font-bold text-white">Riwayat Penarikan Dana</h3>
+              
+              {withdrawalsList.length === 0 ? (
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/10 p-12 text-center text-slate-400 text-sm">
+                  Belum ada permintaan penarikan dana yang diajukan.
+                </div>
+              ) : (
+                <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+                  <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr class="border-b border-slate-800 bg-slate-900/40 text-slate-400">
+                        <th class="p-3 font-semibold">Nominal</th>
+                        <th class="p-3 font-semibold">Status</th>
+                        <th class="p-3 font-semibold">Tanggal Pengajuan</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-350">
+                      {withdrawalsList.map((wd) => (
+                        <tr class="hover:bg-slate-900/20">
+                          <td class="p-3 font-bold text-white">{formatIDR(wd.amount)}</td>
+                          <td class="p-3 text-xs">
+                            {wd.status === "PENDING" && (
+                              <span class="rounded bg-yellow-500/10 px-2 py-0.5 font-bold text-yellow-400 border border-yellow-500/20">Pending</span>
+                            )}
+                            {wd.status === "PROCESSED" && (
+                              <span class="rounded bg-green-500/10 px-2 py-0.5 font-bold text-green-400 border border-green-500/20">Processed</span>
+                            )}
+                            {wd.status === "REJECTED" && (
+                              <span class="rounded bg-red-500/10 px-2 py-0.5 font-bold text-red-400 border border-red-500/20">Rejected</span>
+                            )}
+                          </td>
+                          <td class="p-3 text-xs text-slate-500">
+                            {new Date(wd.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Client side scripts for tabs, bank form & withdrawal submission -->
+  <script is:inline>
+    // Tab switching
+    const tabBtns = {
+      products: document.getElementById("tab-btn-products"),
+      sales: document.getElementById("tab-btn-sales"),
+      withdrawals: document.getElementById("tab-btn-withdrawals"),
+    };
+    
+    const tabPanes = {
+      products: document.getElementById("tab-content-products"),
+      sales: document.getElementById("tab-content-sales"),
+      withdrawals: document.getElementById("tab-content-withdrawals"),
+    };
+
+    function selectTab(selected) {
+      Object.keys(tabBtns).forEach((tab) => {
+        if (tab === selected) {
+          tabBtns[tab].classList.add("border-violet-500", "text-violet-400");
+          tabBtns[tab].classList.remove("border-transparent", "text-slate-400");
+          tabPanes[tab].classList.remove("hidden");
+        } else {
+          tabBtns[tab].classList.remove("border-violet-500", "text-violet-400");
+          tabBtns[tab].classList.add("border-transparent", "text-slate-400");
+          tabPanes[tab].classList.add("hidden");
+        }
+      });
+    }
+
+    tabBtns.products.addEventListener("click", () => selectTab("products"));
+    tabBtns.sales.addEventListener("click", () => selectTab("sales"));
+    tabBtns.withdrawals.addEventListener("click", () => selectTab("withdrawals"));
+
+    // Logout handling
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        if (!confirm("Apakah Anda yakin ingin keluar dari akun Anda?")) return;
+        logoutBtn.disabled = true;
+        try {
+          const res = await fetch("/api/auth/logout", { method: "POST" });
+          if (res.ok) {
+            window.location.href = "/login";
+          } else {
+            alert("Gagal keluar. Silakan coba lagi.");
+            logoutBtn.disabled = false;
+          }
+        } catch (err) {
+          console.error("Gagal keluar:", err);
+          logoutBtn.disabled = false;
+        }
+      });
+    }
+
+    // Save Bank profile details
+    const bankForm = document.getElementById("bank-form");
+    const saveBankBtn = document.getElementById("save-bank-btn");
+    const bankMsg = document.getElementById("bank-form-message");
+
+    bankForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      bankMsg.classList.add("hidden");
+      bankMsg.className = "hidden rounded-xl border p-3 text-xs";
+      saveBankBtn.disabled = true;
+
+      const formData = new FormData(bankForm);
+      const bankName = formData.get("bankName");
+      const bankAccount = formData.get("bankAccount");
+
+      try {
+        const res = await fetch("/api/seller/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bankName, bankAccount }),
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          bankMsg.textContent = data.error || "Gagal menyimpan informasi rekening.";
+          bankMsg.classList.add("border-red-500/20", "bg-red-500/10", "text-red-400");
+          bankMsg.classList.remove("hidden");
+          saveBankBtn.disabled = false;
+        } else {
+          bankMsg.textContent = data.message || "Rekening bank berhasil disimpan.";
+          bankMsg.classList.add("border-green-500/20", "bg-green-500/10", "text-green-400");
+          bankMsg.classList.remove("hidden");
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      } catch (err) {
+        console.error("Gagal menyimpan bank info:", err);
+        bankMsg.textContent = "Gangguan koneksi ke server.";
+        bankMsg.classList.add("border-red-500/20", "bg-red-500/10", "text-red-400");
+        bankMsg.classList.remove("hidden");
+        saveBankBtn.disabled = false;
+      }
+    });
+
+    // Request Withdrawal
+    const wdForm = document.getElementById("wd-form");
+    const submitWdBtn = document.getElementById("submit-wd-btn");
+    const wdMsg = document.getElementById("wd-form-message");
+
+    wdForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      wdMsg.classList.add("hidden");
+      wdMsg.className = "hidden rounded-xl border p-3 text-xs";
+      submitWdBtn.disabled = true;
+
+      const formData = new FormData(wdForm);
+      const amount = parseInt(formData.get("amount"));
+
+      try {
+        const res = await fetch("/api/seller/withdrawals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          wdMsg.textContent = data.error || "Gagal mengajukan penarikan dana.";
+          wdMsg.classList.add("border-red-500/20", "bg-red-500/10", "text-red-400");
+          wdMsg.classList.remove("hidden");
+          submitWdBtn.disabled = false;
+        } else {
+          wdMsg.textContent = data.message || "Permintaan penarikan berhasil diajukan.";
+          wdMsg.classList.add("border-green-500/20", "bg-green-500/10", "text-green-400");
+          wdMsg.classList.remove("hidden");
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      } catch (err) {
+        console.error("Gagal mengajukan penarikan:", err);
+        wdMsg.textContent = "Gangguan koneksi ke server.";
+        wdMsg.classList.add("border-red-500/20", "bg-red-500/10", "text-red-400");
+        wdMsg.classList.remove("hidden");
+        submitWdBtn.disabled = false;
+      }
+    });
+  </script>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 py-12 bg-slate-950 mt-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-xs">
+      <p>&copy; {new Date().getFullYear()} PRODIG. Hak Cipta Dilindungi. Didukung penuh oleh infrastruktur Cloudflare Edge.</p>
+    </div>
+  </footer>
+</Layout>
