@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.6.1",
+    "@aws-sdk/client-s3": "^3.1058.0",
+    "@aws-sdk/s3-request-presigner": "^3.1058.0",
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^6.4.3",
     "bcryptjs": "^3.0.3",
