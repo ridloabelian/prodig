@@ -12,7 +12,7 @@ export async function createMayarInvoice(
   }
 ) {
   const apiKey = env.MAYAR_API_KEY;
-  const baseUrl = env.MAYAR_API_URL || "https://api.mayar.id";
+  const baseUrl = env.MAYAR_API_URL || "https://api.mayar.id/hl";
 
   if (!apiKey) {
     throw new Error("Kunci API Mayar ('MAYAR_API_KEY') belum dikonfigurasi.");
