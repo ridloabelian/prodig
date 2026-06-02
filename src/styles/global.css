@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+@theme {
+  /* Slate Grays & Navies */
+  --color-slate-950: #050A0F; /* Deep Black Navy */
+  --color-slate-900: #0B1220; /* Dark Tech Navy */
+  --color-slate-800: #1E293B; /* Card/Border Dark Slate */
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748B;
+  --color-slate-400: #94A3B8; /* Slate Gray */
+  --color-slate-300: #CBD5E1;
+  --color-slate-200: #E2E8F0;
+  --color-slate-100: #F8FAFC; /* Soft White mapping */
+  --color-slate-50: #F8FAFC;  /* Soft White */
+
+  /* Emerald Greens */
+  --color-emerald-500: #10B981; /* Emerald Green */
+  --color-emerald-600: #059669;
+
+  /* Redefine Violet to Electric Cyan shades */
+  --color-violet-50: #ECFEFF;
+  --color-violet-100: #CFFAFE;
+  --color-violet-200: #A5F3FC;
+  --color-violet-300: #67E8F9;
+  --color-violet-400: #22D3EE; /* Electric Cyan */
+  --color-violet-500: #06B6D4;
+  --color-violet-600: #0891B2;
+  --color-violet-700: #0E7490;
+  --color-violet-800: #155E75;
+  --color-violet-900: #164E63;
+  --color-violet-950: #083344;
+
+  /* Redefine Indigo to Sky Blue for smooth gradient pairings */
+  --color-indigo-50: #F0F9FF;
+  --color-indigo-100: #E0F2FE;
+  --color-indigo-200: #BAE6FD;
+  --color-indigo-300: #7DD3FC;
+  --color-indigo-400: #38BDF8;
+  --color-indigo-500: #0EA5E9;
+  --color-indigo-600: #0284C7;
+  --color-indigo-700: #0369A1;
+  --color-indigo-800: #075985;
+  --color-indigo-900: #0C4A6E;
+  --color-indigo-950: #082F49;
+}
