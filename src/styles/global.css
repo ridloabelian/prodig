@@ -1,46 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  /* Slate Grays & Navies */
-  --color-slate-950: #050A0F; /* Deep Black Navy */
-  --color-slate-900: #0B1220; /* Dark Tech Navy */
-  --color-slate-800: #1E293B; /* Card/Border Dark Slate */
-  --color-slate-700: #334155;
-  --color-slate-600: #475569;
-  --color-slate-500: #64748B;
-  --color-slate-400: #94A3B8; /* Slate Gray */
-  --color-slate-300: #CBD5E1;
-  --color-slate-200: #E2E8F0;
-  --color-slate-100: #F8FAFC; /* Soft White mapping */
-  --color-slate-50: #F8FAFC;  /* Soft White */
+  /* Navy Backgrounds & Borders */
+  --color-slate-950: #050913; /* --navy-900: paling gelap */
+  --color-slate-900: #080f1e; /* --navy-800 */
+  --color-slate-850: #0d162a; /* --navy-700 */
+  --color-slate-800: #1f2c47; /* --navy-line: untuk border/garis */
+  --color-slate-700: #131e36; /* --navy-600 */
+  --color-slate-600: #1c2a47; /* --navy-500 */
+  --color-slate-500: #1f2c47;
 
-  /* Emerald Greens */
-  --color-emerald-500: #10B981; /* Emerald Green */
-  --color-emerald-600: #059669;
+  /* Neutral Text Colors */
+  --color-slate-50: #f4ecd8;  /* --ivory: krem gading */
+  --color-slate-100: #f4ecd8; /* --ivory */
+  --color-slate-200: #e8e1cb; /* --bone: krem tulang */
+  --color-slate-300: #e8e1cb; /* --bone */
+  --color-slate-350: #8895af; /* --muted */
+  --color-slate-400: #8895af; /* --muted: abu-abu kebiruan */
+  --color-slate-500: #6e7a96; /* --muted-2: abu-abu gelap */
+  --color-slate-600: #6e7a96; /* --muted-2 */
 
-  /* Redefine Violet to Electric Cyan shades */
-  --color-violet-50: #ECFEFF;
-  --color-violet-100: #CFFAFE;
-  --color-violet-200: #A5F3FC;
-  --color-violet-300: #67E8F9;
-  --color-violet-400: #22D3EE; /* Electric Cyan */
-  --color-violet-500: #06B6D4;
-  --color-violet-600: #0891B2;
-  --color-violet-700: #0E7490;
-  --color-violet-800: #155E75;
-  --color-violet-900: #164E63;
-  --color-violet-950: #083344;
+  /* Gold Accent & Highlight (Mapped to Violet classes) */
+  --color-violet-50: #fdfbf7;
+  --color-violet-100: #f9f4e2;
+  --color-violet-200: #f1e5bf;
+  --color-violet-300: #e7d295;
+  --color-violet-400: #d8bc6a; /* --gold-soft */
+  --color-violet-500: #c9a84c; /* --gold: emas utama */
+  --color-violet-600: #a78934; /* --gold-deep: emas tua */
+  --color-violet-700: #8b7123;
+  --color-violet-800: #6f5716;
+  --color-violet-900: #54400c;
+  --color-violet-950: #392b05;
 
-  /* Redefine Indigo to Sky Blue for smooth gradient pairings */
-  --color-indigo-50: #F0F9FF;
-  --color-indigo-100: #E0F2FE;
-  --color-indigo-200: #BAE6FD;
-  --color-indigo-300: #7DD3FC;
-  --color-indigo-400: #38BDF8;
-  --color-indigo-500: #0EA5E9;
-  --color-indigo-600: #0284C7;
-  --color-indigo-700: #0369A1;
-  --color-indigo-800: #075985;
-  --color-indigo-900: #0C4A6E;
-  --color-indigo-950: #082F49;
+  /* Gold Gradient Support (Mapped to Indigo classes) */
+  --color-indigo-50: #fdfbf7;
+  --color-indigo-100: #f9f4e2;
+  --color-indigo-200: #f1e5bf;
+  --color-indigo-300: #e7d295;
+  --color-indigo-400: #d8bc6a; /* --gold-soft */
+  --color-indigo-500: #c9a84c; /* --gold: emas utama */
+  --color-indigo-600: #a78934; /* --gold-deep */
+  --color-indigo-700: #8b7123;
+  --color-indigo-800: #6f5716;
+  --color-indigo-900: #54400c;
+  --color-indigo-950: #392b05;
 }
