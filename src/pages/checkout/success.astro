@@ -1,0 +1,167 @@
+---
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+
+const trxId = Astro.url.searchParams.get("trx_id") || "";
+---
+
+<Layout title="Status Pembayaran - Prodig Marketplace">
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <div class="flex items-center">
+          <a href="/" class="flex items-center gap-2">
+            <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-2xl font-extrabold text-transparent tracking-wider">
+              PRODIG
+            </span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-md px-4 py-24 text-center sm:px-6">
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 shadow-2xl backdrop-blur-xl space-y-6">
+      
+      <!-- LOADING STATE -->
+      <div id="status-loading" class="space-y-4">
+        <div class="flex justify-center">
+          <div class="h-12 w-12 animate-spin rounded-full border-4 border-violet-500 border-t-transparent"></div>
+        </div>
+        <h1 class="text-2xl font-extrabold text-white">Memverifikasi Pembayaran...</h1>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          Mohon tunggu sejenak, kami sedang mengonfirmasi status transaksi Anda dari Mayar.id.
+        </p>
+      </div>
+
+      <!-- SUCCESS PAID STATE -->
+      <div id="status-paid" class="hidden space-y-6">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10 border border-green-500/25 text-3xl">
+          🎉
+        </div>
+        <div class="space-y-2">
+          <h1 class="text-2xl font-extrabold text-white">Pembayaran Sukses!</h1>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Terima kasih! Produk digital Anda telah ditambahkan ke koleksi perpustakaan Anda.
+          </p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <a href="/library" class="rounded-xl bg-violet-600 py-3 text-sm font-bold text-white shadow-lg hover:bg-violet-500 transition-all">
+            Buka Perpustakaan Anda
+          </a>
+          <a href="/products" class="rounded-xl border border-slate-800 bg-slate-900/50 py-3 text-sm font-bold text-slate-300 transition-all hover:border-slate-700 hover:text-white">
+            Lanjut Belanja
+          </a>
+        </div>
+      </div>
+
+      <!-- PENDING STATE -->
+      <div id="status-pending" class="hidden space-y-6">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-yellow-500/10 border border-yellow-500/25 text-3xl">
+          ⏳
+        </div>
+        <div class="space-y-2">
+          <h1 class="text-2xl font-extrabold text-white">Menunggu Pembayaran</h1>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Pembayaran Anda masih menunggu penyelesaian. Kami akan mengirimkan email konfirmasi setelah transaksi dikonfirmasi.
+          </p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <a href="/library" class="rounded-xl border border-slate-800 bg-slate-900/50 py-3 text-sm font-bold text-slate-350 transition-all hover:border-slate-700 hover:text-white">
+            Periksa Perpustakaan
+          </a>
+        </div>
+      </div>
+
+      <!-- FAILED STATE -->
+      <div id="status-failed" class="hidden space-y-6">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 border border-red-500/25 text-3xl">
+          ❌
+        </div>
+        <div class="space-y-2">
+          <h1 class="text-2xl font-extrabold text-white">Pembayaran Gagal</h1>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Sistem kami menyatakan bahwa proses transaksi tidak berhasil atau telah kedaluwarsa.
+          </p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <a href="/products" class="rounded-xl bg-violet-600 py-3 text-sm font-bold text-white shadow-lg hover:bg-violet-500 transition-all">
+            Cari Produk Lain
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Polling script for verification -->
+  <script is:inline define:vars={{ trxId }}>
+    const loadingDiv = document.getElementById("status-loading");
+    const paidDiv = document.getElementById("status-paid");
+    const pendingDiv = document.getElementById("status-pending");
+    const failedDiv = document.getElementById("status-failed");
+
+    function showStatus(status) {
+      loadingDiv.classList.add("hidden");
+      paidDiv.classList.add("hidden");
+      pendingDiv.classList.add("hidden");
+      failedDiv.classList.add("hidden");
+
+      if (status === "paid") {
+        paidDiv.classList.remove("hidden");
+      } else if (status === "failed") {
+        failedDiv.classList.remove("hidden");
+      } else if (status === "pending") {
+        pendingDiv.classList.remove("hidden");
+      } else {
+        loadingDiv.classList.remove("hidden");
+      }
+    }
+
+    if (!trxId) {
+      showStatus("failed");
+    } else {
+      let intervalId;
+      let timeoutId;
+
+      const checkStatus = async () => {
+        try {
+          const res = await fetch(`/api/library?trx_id=${trxId}`);
+          if (!res.ok) throw new Error();
+          
+          const data = await res.json();
+          const txStatus = data.transaction?.status;
+
+          if (txStatus === "PAID") {
+            showStatus("paid");
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+          } else if (txStatus === "FAILED" || txStatus === "EXPIRED") {
+            showStatus("failed");
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+          }
+        } catch (error) {
+          console.error("Gagal melakukan polling status transaksi:", error);
+        }
+      };
+
+      // Initial check
+      checkStatus();
+      
+      // Poll every 3 seconds
+      intervalId = setInterval(checkStatus, 3000);
+      
+      // Stop polling after 30 seconds
+      timeoutId = setTimeout(() => {
+        clearInterval(intervalId);
+        // If still loading, fallback to pending
+        if (!loadingDiv.classList.contains("hidden")) {
+          showStatus("pending");
+        }
+      }, 30000);
+    }
+  </script>
+</Layout>

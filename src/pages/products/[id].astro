@@ -1,0 +1,337 @@
+---
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+import { getDb } from "../../db";
+import { products, categories, users, reviews } from "../../db/schema";
+import { eq, desc, sql } from "drizzle-orm";
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect("/products");
+}
+
+let product: any = null;
+let reviewsList: any[] = [];
+let errorMsg = "";
+
+try {
+  const db = getDb(Astro.locals.runtime.env);
+
+  // 1. Increment View Count
+  try {
+    await db
+      .update(products)
+      .set({ viewCount: sql`${products.viewCount} + 1` })
+      .where(eq(products.id, id));
+  } catch (viewError) {
+    console.error("Gagal menaikkan view count:", viewError);
+  }
+
+  // 2. Fetch Product joined with seller and category
+  const result = await db
+    .select({
+      id: products.id,
+      title: products.title,
+      description: products.description,
+      price: products.price,
+      thumbnail: products.thumbnail,
+      salesCount: products.salesCount,
+      viewCount: products.viewCount,
+      fileName: products.fileName,
+      fileSize: products.fileSize,
+      status: products.status,
+      sellerName: users.name,
+      categoryName: categories.name,
+      categorySlug: categories.slug,
+    })
+    .from(products)
+    .leftJoin(users, eq(products.sellerId, users.id))
+    .leftJoin(categories, eq(products.categoryId, categories.id))
+    .where(eq(products.id, id))
+    .get();
+
+  if (result) {
+    product = result;
+
+    // 3. Fetch Reviews
+    reviewsList = await db
+      .select({
+        id: reviews.id,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+        buyerName: users.name,
+      })
+      .from(reviews)
+      .leftJoin(users, eq(reviews.buyerId, users.id))
+      .where(eq(reviews.productId, id))
+      .orderBy(desc(reviews.createdAt));
+  }
+} catch (e: any) {
+  console.error("Gagal memuat detail produk:", e);
+  errorMsg = e.message;
+}
+
+// Calculate review statistics
+const reviewCount = reviewsList.length;
+const avgRating = reviewCount
+  ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+  : 0;
+
+// Format prices to IDR
+const formattedPrice = product ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(product.price) : "";
+const ppn = product ? Math.floor(product.price * 0.11) : 0;
+const formattedPpn = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(ppn);
+const totalAmount = product ? product.price + ppn : 0;
+const formattedTotal = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(totalAmount);
+---
+
+<Layout title={product ? `${product.title} - Prodig` : "Produk Tidak Ditemukan"}>
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <div class="flex items-center">
+          <a href="/" class="flex items-center gap-2">
+            <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-2xl font-extrabold text-transparent tracking-wider">
+              PRODIG
+            </span>
+          </a>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="/products" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Jelajahi
+          </a>
+          {Astro.locals.user ? (
+            <span class="text-sm text-slate-300">
+              Halo, <span class="font-bold text-slate-100">{Astro.locals.user.name}</span>
+            </span>
+            <a href="/dashboard" class="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2 text-sm font-bold text-slate-300 transition-all hover:border-slate-700 hover:text-white">
+              Dashboard
+            </a>
+          ) : (
+            <a href="/login" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+              Masuk
+            </a>
+            <a href="/register" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-500/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30">
+              Mulai Jualan
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    {errorMsg && (
+      <div class="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-400 text-sm">
+        <strong>Database Error:</strong> {errorMsg}
+      </div>
+    )}
+
+    {!product && !errorMsg && (
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/10 p-16 text-center">
+        <h1 class="text-2xl font-bold text-white mb-4">Produk Tidak Ditemukan</h1>
+        <p class="text-slate-400 mb-8">Maaf, berkas produk digital yang Anda cari tidak terdaftar atau telah dihapus.</p>
+        <a href="/products" class="rounded-xl bg-violet-600 px-6 py-3 text-sm font-bold text-white hover:bg-violet-500 transition-colors">
+          Kembali ke Katalog
+        </a>
+      </div>
+    )}
+
+    {product && (
+      <div class="grid grid-cols-1 gap-12 lg:grid-cols-2">
+        <!-- Left Content: Image & Description -->
+        <div class="space-y-8">
+          <div class="aspect-video w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+            <img 
+              src={product.thumbnail} 
+              alt={product.title} 
+              class="h-full w-full object-cover"
+            />
+          </div>
+          
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/20 p-6 backdrop-blur-sm">
+            <h2 class="text-lg font-bold text-white mb-4">Deskripsi Produk</h2>
+            <div class="prose prose-invert prose-sm max-w-none text-slate-300 whitespace-pre-line leading-relaxed">
+              {product.description}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Content: Info & Purchase Card -->
+        <div class="space-y-6">
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 shadow-2xl backdrop-blur-xl space-y-6">
+            <div>
+              <span class="text-xs font-bold text-violet-400 uppercase tracking-wider">
+                {product.categoryName}
+              </span>
+              <h1 class="mt-2 text-3xl font-extrabold text-white leading-tight">
+                {product.title}
+              </h1>
+              
+              <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
+                <span>oleh <span class="font-medium text-slate-200">{product.sellerName || "Kreator"}</span></span>
+                <span class="text-slate-650">•</span>
+                <span>{product.salesCount} Terjual</span>
+                <span class="text-slate-650">•</span>
+                <span>{product.viewCount} Dilihat</span>
+              </div>
+
+              {avgRating > 0 && (
+                <div class="mt-3 flex items-center gap-1.5 text-sm">
+                  <span class="text-yellow-500">★</span>
+                  <span class="font-bold text-slate-200">{avgRating.toFixed(1)}</span>
+                  <span class="text-slate-500">({reviewCount} ulasan)</span>
+                </div>
+              )}
+            </div>
+
+            <!-- Price breakdown card -->
+            <div class="rounded-xl border border-slate-800/80 bg-slate-950 p-4 space-y-3">
+              <div class="flex justify-between text-sm text-slate-400">
+                <span>Harga Dasar</span>
+                <span class="text-slate-200 font-medium">{formattedPrice}</span>
+              </div>
+              <div class="flex justify-between text-sm text-slate-400">
+                <span>PPN (11%)</span>
+                <span class="text-slate-200 font-medium">{formattedPpn}</span>
+              </div>
+              <div class="flex justify-between border-t border-slate-800 pt-3 text-base font-bold text-white">
+                <span>Total Harga</span>
+                <span class="text-violet-400 text-lg">{formattedTotal}</span>
+              </div>
+            </div>
+
+            <!-- Checkout action -->
+            <div id="checkout-error" class="hidden rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-400"></div>
+
+            <button 
+              id="checkout-btn"
+              data-product-id={product.id}
+              data-logged-in={Astro.locals.user ? "true" : "false"}
+              class="w-full rounded-xl bg-violet-600 py-4 text-center text-sm font-bold text-white shadow-lg shadow-violet-500/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Beli Sekarang
+            </button>
+          </div>
+          
+          {/* File info card */}
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/20 p-6 backdrop-blur-sm space-y-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400">Informasi Berkas</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span class="text-slate-500 block text-xs">Nama Berkas</span>
+                <span class="text-slate-350 font-medium truncate block">{product.fileName || "N/A"}</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block text-xs">Ukuran Berkas</span>
+                <span class="text-slate-355 font-medium block">
+                  {product.fileSize ? `${(product.fileSize / (1024 * 1024)).toFixed(2)} MB` : "N/A"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {product && reviewsList.length > 0 && (
+      <section class="mt-16 border-t border-slate-900 pt-16">
+        <h2 class="text-2xl font-bold text-white mb-8">Ulasan Pembeli ({reviewCount})</h2>
+        <div class="grid gap-6 sm:grid-cols-2">
+          {reviewsList.map((review) => (
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/10 p-6 backdrop-blur-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-slate-200">{review.buyerName || "Pembeli"}</span>
+                <span class="text-yellow-500 text-sm">{"★".repeat(review.rating)}</span>
+              </div>
+              {review.comment && (
+                <p class="text-sm text-slate-400 leading-relaxed italic">
+                  "{review.comment}"
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+
+  <!-- Client-side Affiliate tracking & Checkout flow -->
+  <script is:inline>
+    // 1. Capture affiliate ref code from search parameter
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) {
+      document.cookie = `affiliate_code=${ref}; max-age=${30 * 24 * 60 * 60}; path=/`;
+    }
+
+    // 2. Checkout handler
+    const checkoutBtn = document.getElementById("checkout-btn");
+    const checkoutError = document.getElementById("checkout-error");
+
+    if (checkoutBtn) {
+      checkoutBtn.addEventListener("click", async () => {
+        checkoutError.classList.add("hidden");
+        checkoutError.textContent = "";
+
+        const productId = checkoutBtn.getAttribute("data-product-id");
+        const isLoggedIn = checkoutBtn.getAttribute("data-logged-in") === "true";
+
+        if (!isLoggedIn) {
+          // Redirect to login page with current URL as redirect back
+          const currentUrl = encodeURIComponent(window.location.pathname);
+          window.location.href = `/login?redirect=${currentUrl}`;
+          return;
+        }
+
+        // Disable button & show loading state
+        checkoutBtn.disabled = true;
+        const originalText = checkoutBtn.textContent;
+        checkoutBtn.textContent = "Memuat Invoice...";
+
+        // Extract affiliate code from cookies
+        const affiliateCode = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("affiliate_code="))
+          ?.split("=")[1];
+
+        try {
+          const res = await fetch("/api/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId, affiliateCode }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            checkoutError.textContent = data.error || "Gagal melanjutkan ke pembayaran.";
+            checkoutError.classList.remove("hidden");
+            checkoutBtn.disabled = false;
+            checkoutBtn.textContent = originalText;
+          } else {
+            // Redirect to Mayar checkout invoice
+            window.location.href = data.invoiceUrl;
+          }
+        } catch (err) {
+          console.error("Gagal memproses checkout:", err);
+          checkoutError.textContent = "Koneksi bermasalah. Pastikan internet Anda aktif.";
+          checkoutError.classList.remove("hidden");
+          checkoutBtn.disabled = false;
+          checkoutBtn.textContent = originalText;
+        }
+      });
+    }
+  </script>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 py-12 bg-slate-950 mt-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-xs">
+      <p>&copy; {new Date().getFullYear()} PRODIG. Hak Cipta Dilindungi. Didukung penuh oleh infrastruktur Cloudflare Edge.</p>
+    </div>
+  </footer>
+</Layout>
