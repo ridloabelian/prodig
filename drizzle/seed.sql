@@ -12,9 +12,9 @@ ON CONFLICT(id) DO NOTHING;
 -- Demo Users Seed
 -- Password is 'password123' (hashed with bcrypt)
 INSERT INTO users (id, name, email, password, role, whatsapp, created_at, updated_at) VALUES
-('seller1', 'Prodig Studio', 'seller@prodig.id', '$2a$10$eE.rWwP/B7Hw28g1Jz2Q3uZ5F9eP3e2Wf1yE9uH8x4U5w6q7r8s9t', 'SELLER', '6281234567890', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('buyer1', 'John Doe', 'buyer@prodig.id', '$2a$10$eE.rWwP/B7Hw28g1Jz2Q3uZ5F9eP3e2Wf1yE9uH8x4U5w6q7r8s9t', 'BUYER', NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('admin1', 'Admin Prodig', 'admin@prodig.id', '$2a$10$eE.rWwP/B7Hw28g1Jz2Q3uZ5F9eP3e2Wf1yE9uH8x4U5w6q7r8s9t', 'ADMIN', NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000)
+('seller1', 'Prodig Studio', 'seller@prodig.id', '$2b$10$e8X.fzl7PXV/CY/JQvwNhujPuLfsAJssRRCeXMBxFJTGqKocf.7Da', 'SELLER', '6281234567890', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('buyer1', 'John Doe', 'buyer@prodig.id', '$2b$10$e8X.fzl7PXV/CY/JQvwNhujPuLfsAJssRRCeXMBxFJTGqKocf.7Da', 'BUYER', NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('admin1', 'Admin Prodig', 'admin@prodig.id', '$2b$10$e8X.fzl7PXV/CY/JQvwNhujPuLfsAJssRRCeXMBxFJTGqKocf.7Da', 'ADMIN', NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000)
 ON CONFLICT(id) DO NOTHING;
 
 -- Demo Products Seed
