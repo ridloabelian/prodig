@@ -1,0 +1,569 @@
+---
+export const prerender = false;
+
+import Layout from "../layouts/Layout.astro";
+
+const user = Astro.locals.user;
+if (!user || user.role !== "ADMIN") {
+  return Astro.redirect("/login?redirect=" + encodeURIComponent(Astro.url.pathname));
+}
+---
+
+<Layout title="Admin Panel Moderasi - Prodig">
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <div class="flex items-center">
+          <a href="/" class="flex items-center gap-2">
+            <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-2xl font-extrabold text-transparent tracking-wider">
+              PRODIG
+            </span>
+            <span class="rounded bg-red-500/10 px-2 py-0.5 text-[9px] font-bold text-red-400 border border-red-500/20">
+              Admin Portal
+            </span>
+          </a>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="/products" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Jelajahi
+          </a>
+          <a href="/dashboard" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Dashboard Seller
+          </a>
+          <span class="text-sm text-slate-400">|</span>
+          <span class="text-sm font-bold text-slate-200">{user.name}</span>
+          <button 
+            id="logout-btn"
+            class="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-1.5 text-xs font-bold text-slate-350 transition-all hover:border-slate-700 hover:text-white"
+          >
+            Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="space-y-8">
+      <div>
+        <h1 class="text-3xl font-extrabold text-white leading-tight">Admin Moderasi</h1>
+        <p class="mt-2 text-sm text-slate-400">Moderasi unggahan produk digital baru dan proses pengajuan penarikan dana keuangan.</p>
+      </div>
+
+      <!-- Action Toast Alert -->
+      <div id="toast-alert" class="hidden rounded-xl border p-4 text-sm max-w-2xl transition-all duration-300"></div>
+
+      <!-- Tabs Header -->
+      <div class="border-b border-slate-800/80">
+        <div class="flex gap-6">
+          <button 
+            id="tab-btn-products"
+            class="tab-btn pb-3 text-sm font-bold border-b-2 transition-colors border-violet-500 text-violet-400"
+          >
+            Moderasi Produk
+          </button>
+          <button 
+            id="tab-btn-withdrawals"
+            class="tab-btn pb-3 text-sm font-bold border-b-2 transition-colors border-transparent text-slate-400 hover:text-white"
+          >
+            Penarikan Seller
+          </button>
+          <button 
+            id="tab-btn-affiliate-withdrawals"
+            class="tab-btn pb-3 text-sm font-bold border-b-2 transition-colors border-transparent text-slate-400 hover:text-white"
+          >
+            Penarikan Affiliate
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="admin-loading" class="py-16 text-center space-y-4">
+        <div class="flex justify-center">
+          <div class="h-10 w-10 animate-spin rounded-full border-4 border-violet-500 border-t-transparent"></div>
+        </div>
+        <p class="text-sm text-slate-400">Memuat data panel admin...</p>
+      </div>
+
+      <!-- TAB 1: PRODUCTS MODERATION -->
+      <div id="tab-content-products" class="tab-pane hidden space-y-6">
+        <!-- Status Filter Buttons -->
+        <div class="flex flex-wrap gap-2">
+          <button class="status-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-violet-600 text-white" data-status="PENDING">PENDING</button>
+          <button class="status-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-900 text-slate-400 hover:text-white" data-status="APPROVED">APPROVED</button>
+          <button class="status-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-900 text-slate-400 hover:text-white" data-status="REJECTED">REJECTED</button>
+          <button class="status-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-900 text-slate-400 hover:text-white" data-status="ALL">SEMUA</button>
+        </div>
+
+        <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 bg-slate-900/40 text-slate-400">
+                <th class="p-4 font-semibold">Produk</th>
+                <th class="p-4 font-semibold">Penjual</th>
+                <th class="p-4 font-semibold">Kategori</th>
+                <th class="p-4 font-semibold">Harga Dasar</th>
+                <th class="p-4 font-semibold">Status</th>
+                <th class="p-4 font-semibold text-right">Aksi Moderasi</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div id="products-empty" class="hidden text-center py-12 text-slate-400 text-sm">
+            Tidak ada produk yang perlu dimoderasi untuk status ini.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: SELLER WITHDRAWALS -->
+      <div id="tab-content-withdrawals" class="tab-pane hidden space-y-4">
+        <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 bg-slate-900/40 text-slate-400">
+                <th class="p-4 font-semibold">Penjual</th>
+                <th class="p-4 font-semibold">Jumlah Penarikan</th>
+                <th class="p-4 font-semibold">Rekening Bank</th>
+                <th class="p-4 font-semibold">Tanggal</th>
+                <th class="p-4 font-semibold">Status</th>
+                <th class="p-4 font-semibold text-right">Aksi Penarikan</th>
+              </tr>
+            </thead>
+            <tbody id="withdrawals-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div id="withdrawals-empty" class="hidden text-center py-12 text-slate-400 text-sm">
+            Tidak ada permintaan penarikan dana seller pending saat ini.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: AFFILIATE WITHDRAWALS -->
+      <div id="tab-content-affiliate-withdrawals" class="tab-pane hidden space-y-4">
+        <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 bg-slate-900/40 text-slate-400">
+                <th class="p-4 font-semibold">Affiliator</th>
+                <th class="p-4 font-semibold">Kode</th>
+                <th class="p-4 font-semibold">Jumlah Penarikan</th>
+                <th class="p-4 font-semibold">Rekening Bank</th>
+                <th class="p-4 font-semibold">Tanggal</th>
+                <th class="p-4 font-semibold">Status</th>
+                <th class="p-4 font-semibold text-right">Aksi Penarikan</th>
+              </tr>
+            </thead>
+            <tbody id="affiliate-withdrawals-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div id="affiliate-withdrawals-empty" class="hidden text-center py-12 text-slate-400 text-sm">
+            Tidak ada riwayat penarikan komisi affiliate saat ini.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script is:inline>
+    // Tab Elements
+    const tabBtns = {
+      products: document.getElementById("tab-btn-products"),
+      withdrawals: document.getElementById("tab-btn-withdrawals"),
+      affiliateWithdrawals: document.getElementById("tab-btn-affiliate-withdrawals"),
+    };
+
+    const tabPanes = {
+      products: document.getElementById("tab-content-products"),
+      withdrawals: document.getElementById("tab-content-withdrawals"),
+      affiliateWithdrawals: document.getElementById("tab-content-affiliate-withdrawals"),
+    };
+
+    // Shared UI Elements
+    const loadingEl = document.getElementById("admin-loading");
+    const toastAlert = document.getElementById("toast-alert");
+
+    // Products State
+    let currentProductStatus = "PENDING";
+
+    // Format Rupiah
+    function formatIDR(val) {
+      return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(val);
+    }
+
+    // Show toast message
+    function showToast(message, isSuccess = true) {
+      toastAlert.textContent = message;
+      toastAlert.className = isSuccess 
+        ? "rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm text-green-400 max-w-2xl block"
+        : "rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 max-w-2xl block";
+      
+      // Auto scroll to top to see alert
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Clear toast after 4s
+      setTimeout(() => {
+        toastAlert.className = "hidden";
+      }, 4000);
+    }
+
+    // Switch Tabs
+    function switchTab(target) {
+      Object.keys(tabBtns).forEach((tab) => {
+        if (tab === target) {
+          tabBtns[tab].classList.add("border-violet-500", "text-violet-400");
+          tabBtns[tab].classList.remove("border-transparent", "text-slate-400");
+          tabPanes[tab].classList.remove("hidden");
+        } else {
+          tabBtns[tab].classList.remove("border-violet-500", "text-violet-400");
+          tabBtns[tab].classList.add("border-transparent", "text-slate-400");
+          tabPanes[tab].classList.add("hidden");
+        }
+      });
+      
+      loadDataForTab(target);
+    }
+
+    // Load data based on selected tab
+    function loadDataForTab(tab) {
+      loadingEl.classList.remove("hidden");
+      
+      if (tab === "products") {
+        fetchProducts();
+      } else if (tab === "withdrawals") {
+        fetchWithdrawals();
+      } else if (tab === "affiliateWithdrawals") {
+        fetchAffiliateWithdrawals();
+      }
+    }
+
+    // 1. FETCH & RENDER PRODUCTS
+    async function fetchProducts() {
+      const tableBody = document.getElementById("products-table-body");
+      const emptyEl = document.getElementById("products-empty");
+      tableBody.innerHTML = "";
+      emptyEl.classList.add("hidden");
+
+      try {
+        const res = await fetch(`/api/admin/products?status=${currentProductStatus}`);
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || "Gagal memuat produk");
+        const list = data.products || [];
+
+        if (list.length === 0) {
+          emptyEl.classList.remove("hidden");
+        } else {
+          list.forEach(p => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-900/20";
+            
+            // Status Badge HTML
+            let statusBadge = `<span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-400">${p.status}</span>`;
+            if (p.status === "APPROVED") {
+              statusBadge = `<span class="rounded bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-400 border border-green-500/20">Approved</span>`;
+            } else if (p.status === "PENDING") {
+              statusBadge = `<span class="rounded bg-yellow-500/10 px-2 py-0.5 text-xs font-bold text-yellow-400 border border-yellow-500/20">Pending</span>`;
+            } else if (p.status === "REJECTED") {
+              statusBadge = `<span class="rounded bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-400 border border-red-500/20">Rejected</span>`;
+            }
+
+            // Action Buttons HTML
+            let actionsHtml = `<span class="text-xs text-slate-500 italic">Tidak ada aksi</span>`;
+            if (p.status === "PENDING") {
+              actionsHtml = `
+                <div class="flex justify-end gap-2">
+                  <button class="approve-prod-btn rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-500" data-id="${p.id}">Setuju</button>
+                  <button class="reject-prod-btn rounded-lg bg-red-650 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500" data-id="${p.id}">Tolak</button>
+                </div>
+              `;
+            }
+
+            tr.innerHTML = `
+              <td class="p-4 font-bold text-white max-w-xs truncate">${p.title}</td>
+              <td class="p-4 text-xs">
+                <span class="block text-slate-200">${p.seller?.name || "Kreator"}</span>
+                <span class="text-slate-500 block">${p.seller?.email || ""}</span>
+              </td>
+              <td class="p-4">${p.category?.name || "N/A"}</td>
+              <td class="p-4">${formatIDR(p.price)}</td>
+              <td class="p-4">${statusBadge}</td>
+              <td class="p-4 text-right">${actionsHtml}</td>
+            `;
+            tableBody.appendChild(tr);
+          });
+
+          // Wire up event listeners
+          document.querySelectorAll(".approve-prod-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleProductModeration(btn.getAttribute("data-id"), "APPROVED"));
+          });
+          document.querySelectorAll(".reject-prod-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleProductModeration(btn.getAttribute("data-id"), "REJECTED"));
+          });
+        }
+      } catch (err) {
+        showToast(err.message, false);
+      } finally {
+        loadingEl.classList.add("hidden");
+      }
+    }
+
+    async function handleProductModeration(productId, status) {
+      if (!confirm(`Apakah Anda yakin ingin mengubah status produk menjadi ${status}?`)) return;
+      loadingEl.classList.remove("hidden");
+
+      try {
+        const res = await fetch(`/api/admin/products/${productId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || "Gagal mengubah status produk");
+        
+        showToast(data.message || `Produk berhasil di-${status.toLowerCase()}`, true);
+        fetchProducts();
+      } catch (err) {
+        showToast(err.message, false);
+        loadingEl.classList.add("hidden");
+      }
+    }
+
+    // 2. FETCH & RENDER SELLER WITHDRAWALS
+    async function fetchWithdrawals() {
+      const tableBody = document.getElementById("withdrawals-table-body");
+      const emptyEl = document.getElementById("withdrawals-empty");
+      tableBody.innerHTML = "";
+      emptyEl.classList.add("hidden");
+
+      try {
+        const res = await fetch("/api/admin/withdrawals");
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Gagal memuat penarikan");
+        const list = data.withdrawals || [];
+
+        if (list.length === 0) {
+          emptyEl.classList.remove("hidden");
+        } else {
+          list.forEach(w => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-900/20";
+
+            tr.innerHTML = `
+              <td class="p-4">
+                <span class="block font-bold text-white">${w.seller?.name || "Penjual"}</span>
+                <span class="text-xs text-slate-500 block">${w.seller?.email || ""}</span>
+              </td>
+              <td class="p-4 font-bold text-white">${formatIDR(w.amount)}</td>
+              <td class="p-4">
+                <span class="block font-bold text-slate-200">${w.seller?.bankName || "-"}</span>
+                <span class="text-xs text-slate-500 block font-mono">No. Rek: ${w.seller?.bankAccount || "-"}</span>
+              </td>
+              <td class="p-4 text-xs text-slate-400">${new Date(w.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+              <td class="p-4"><span class="rounded bg-yellow-500/10 px-2 py-0.5 text-xs font-bold text-yellow-400 border border-yellow-500/20">${w.status}</span></td>
+              <td class="p-4">
+                <div class="flex justify-end gap-2">
+                  <button class="approve-wd-btn rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-500" data-id="${w.id}">Proses</button>
+                  <button class="reject-wd-btn rounded-lg bg-red-650 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500" data-id="${w.id}">Tolak</button>
+                </div>
+              </td>
+            `;
+            tableBody.appendChild(tr);
+          });
+
+          // Wire up event listeners
+          document.querySelectorAll(".approve-wd-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleWithdrawalAction(btn.getAttribute("data-id"), "PROCESSED"));
+          });
+          document.querySelectorAll(".reject-wd-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleWithdrawalAction(btn.getAttribute("data-id"), "REJECTED"));
+          });
+        }
+      } catch (err) {
+        showToast(err.message, false);
+      } finally {
+        loadingEl.classList.add("hidden");
+      }
+    }
+
+    async function handleWithdrawalAction(wdId, status) {
+      const confirmMsg = status === "PROCESSED" 
+        ? "Apakah Anda sudah mentransfer uang penarikan ini dan ingin menandai sebagai sukses?" 
+        : "Apakah Anda yakin ingin menolak permintaan penarikan dana ini?";
+      
+      if (!confirm(confirmMsg)) return;
+      loadingEl.classList.remove("hidden");
+
+      try {
+        const res = await fetch(`/api/admin/withdrawals?id=${wdId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Gagal memperbarui penarikan");
+        
+        showToast(data.message || `Penarikan berhasil diperbarui menjadi ${status}`, true);
+        fetchWithdrawals();
+      } catch (err) {
+        showToast(err.message, false);
+        loadingEl.classList.add("hidden");
+      }
+    }
+
+    // 3. FETCH & RENDER AFFILIATE WITHDRAWALS
+    async function fetchAffiliateWithdrawals() {
+      const tableBody = document.getElementById("affiliate-withdrawals-table-body");
+      const emptyEl = document.getElementById("affiliate-withdrawals-empty");
+      tableBody.innerHTML = "";
+      emptyEl.classList.add("hidden");
+
+      try {
+        const res = await fetch("/api/admin/affiliate-withdrawals");
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Gagal memuat penarikan komisi");
+        const list = data.withdrawals || [];
+
+        if (list.length === 0) {
+          emptyEl.classList.remove("hidden");
+        } else {
+          list.forEach(w => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-900/20";
+
+            let statusBadge = `<span class="rounded bg-yellow-500/10 px-2 py-0.5 text-xs font-bold text-yellow-400 border border-yellow-500/20">${w.status}</span>`;
+            if (w.status === "PROCESSED") {
+              statusBadge = `<span class="rounded bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-400 border border-green-500/20">Processed</span>`;
+            } else if (w.status === "REJECTED") {
+              statusBadge = `<span class="rounded bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-400 border border-red-500/20">Rejected</span>`;
+            }
+
+            let actionsHtml = `<span class="text-xs text-slate-500 italic">Tidak ada aksi</span>`;
+            if (w.status === "PENDING") {
+              actionsHtml = `
+                <div class="flex justify-end gap-2">
+                  <button class="approve-aff-wd-btn rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-500" data-id="${w.id}">Proses</button>
+                  <button class="reject-aff-wd-btn rounded-lg bg-red-650 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500" data-id="${w.id}">Tolak</button>
+                </div>
+              `;
+            }
+
+            tr.innerHTML = `
+              <td class="p-4">
+                <span class="block font-bold text-white">${w.user?.name || "Affiliator"}</span>
+                <span class="text-xs text-slate-500 block">${w.user?.email || ""}</span>
+              </td>
+              <td class="p-4 font-mono text-xs text-slate-400">${w.affiliate?.code || "-"}</td>
+              <td class="p-4 font-bold text-white">{formatIDR(w.amount)}</td>
+              <td class="p-4 font-medium text-slate-200">
+                <span class="block">${w.user?.bankName || "-"}</span>
+                <span class="text-xs text-slate-500 block font-mono">No. Rek: ${w.user?.bankAccount || "-"}</span>
+              </td>
+              <td class="p-4 text-xs text-slate-400">${new Date(w.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+              <td class="p-4">${statusBadge}</td>
+              <td class="p-4 text-right">${actionsHtml}</td>
+            `;
+            tableBody.appendChild(tr);
+          });
+
+          // Wire up event listeners
+          document.querySelectorAll(".approve-aff-wd-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleAffiliateWithdrawalAction(btn.getAttribute("data-id"), "PROCESSED"));
+          });
+          document.querySelectorAll(".reject-aff-wd-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleAffiliateWithdrawalAction(btn.getAttribute("data-id"), "REJECTED"));
+          });
+        }
+      } catch (err) {
+        showToast(err.message, false);
+      } finally {
+        loadingEl.classList.add("hidden");
+      }
+    }
+
+    async function handleAffiliateWithdrawalAction(wdId, status) {
+      if (!confirm(`Apakah Anda yakin ingin memproses/menolak penarikan komisi affiliate ini?`)) return;
+      loadingEl.classList.remove("hidden");
+
+      try {
+        const res = await fetch(`/api/admin/affiliate-withdrawals?id=${wdId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Gagal memperbarui penarikan affiliate");
+
+        showToast(data.message || `Penarikan affiliate berhasil diperbarui menjadi ${status}`, true);
+        fetchAffiliateWithdrawals();
+      } catch (err) {
+        showToast(err.message, false);
+        loadingEl.classList.add("hidden");
+      }
+    }
+
+    // Set up tab switching triggers
+    tabBtns.products.addEventListener("click", () => switchTab("products"));
+    tabBtns.withdrawals.addEventListener("click", () => switchTab("withdrawals"));
+    tabBtns.affiliateWithdrawals.addEventListener("click", () => switchTab("affiliateWithdrawals"));
+
+    // Set up product status filter clicks
+    document.querySelectorAll(".status-filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        // Reset active filter button style
+        document.querySelectorAll(".status-filter-btn").forEach(b => {
+          b.classList.remove("bg-violet-600", "text-white");
+          b.classList.add("bg-slate-900", "text-slate-400");
+        });
+
+        btn.classList.add("bg-violet-600", "text-white");
+        btn.classList.remove("bg-slate-900", "text-slate-400");
+
+        currentProductStatus = btn.getAttribute("data-status");
+        loadingEl.classList.remove("hidden");
+        fetchProducts();
+      });
+    });
+
+    // Logout handling
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        if (!confirm("Apakah Anda yakin ingin keluar dari akun Anda?")) return;
+        logoutBtn.disabled = true;
+        try {
+          const res = await fetch("/api/auth/logout", { method: "POST" });
+          if (res.ok) {
+            window.location.href = "/login";
+          } else {
+            alert("Gagal keluar. Silakan coba lagi.");
+            logoutBtn.disabled = false;
+          }
+        } catch (err) {
+          console.error("Gagal keluar:", err);
+          logoutBtn.disabled = false;
+        }
+      });
+    }
+
+    // Initial load default tab: products
+    switchTab("products");
+  </script>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 py-12 bg-slate-950 mt-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-xs">
+      <p>&copy; {new Date().getFullYear()} PRODIG. Hak Cipta Dilindungi. Didukung penuh oleh infrastruktur Cloudflare Edge.</p>
+    </div>
+  </footer>
+</Layout>
