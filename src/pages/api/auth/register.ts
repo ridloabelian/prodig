@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 export const prerender = false;
 import type { APIRoute } from "astro";
 import { z } from "zod";
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const { name, email, password, role, whatsapp } = parsed.data;
-    const db = getDb(locals.runtime.env);
+    const db = getDb(env);
 
     // Check if email already exists
     const existing = await db

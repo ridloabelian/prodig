@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
@@ -21,7 +22,7 @@ export const GET: APIRoute = async (context) => {
       );
     }
 
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // Fetch all PENDING withdrawal requests for sellers
     const results = await db
@@ -87,7 +88,7 @@ export const PATCH: APIRoute = async (context) => {
     }
 
     const { status, notes } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // Update withdrawal request status
     await db

@@ -1,4 +1,5 @@
 ---
+import { env } from "cloudflare:workers";
 export const prerender = false;
 
 import Layout from "../layouts/Layout.astro";
@@ -15,7 +16,7 @@ let purchases: any[] = [];
 let errorMsg = "";
 
 try {
-  const db = getDb(Astro.locals.runtime.env);
+  const db = getDb(env);
 
   // Fetch PAID transactions for this buyer with product, seller, and optional review info
   purchases = await db

@@ -1,4 +1,5 @@
 ---
+import { env } from "cloudflare:workers";
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
@@ -17,7 +18,7 @@ let categoriesList: any[] = [];
 let errorMsg = "";
 
 try {
-  const db = getDb(Astro.locals.runtime.env);
+  const db = getDb(env);
 
   // 1. Fetch Categories for Sidebar
   categoriesList = await db

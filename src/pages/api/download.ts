@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { getDb } from "../../db";
@@ -7,7 +8,7 @@ import { getPresignedDownloadUrl } from "../../lib/r2";
 export const prerender = false;
 
 export const GET: APIRoute = async (context) => {
-  const env = context.locals.runtime.env;
+  const env = env;
   const db = getDb(env);
 
   try {

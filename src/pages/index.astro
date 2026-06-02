@@ -1,4 +1,5 @@
 ---
+import { env } from "cloudflare:workers";
 export const prerender = false;
 
 import Layout from "../layouts/Layout.astro";
@@ -12,8 +13,8 @@ let categoriesList: any[] = [];
 let errorMsg = "";
 
 try {
-  // Bindings D1 diakses melalui Astro.locals.runtime.env
-  const db = getDb(Astro.locals.runtime.env);
+  // Bindings D1 diakses melalui env
+  const db = getDb(env);
 
   productsList = await db
     .select({

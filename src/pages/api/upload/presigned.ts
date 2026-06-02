@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { getPresignedUploadUrl, getPublicUrl } from "../../../lib/r2";
@@ -78,8 +79,8 @@ export const POST: APIRoute = async (context) => {
         ? `products/${user.id}/${uuid}-${fileName}`
         : `thumbnails/${uuid}-${fileName}`;
 
-    const uploadUrl = await getPresignedUploadUrl(context.locals.runtime.env, key, fileType);
-    const publicUrl = getPublicUrl(context.locals.runtime.env, key);
+    const uploadUrl = await getPresignedUploadUrl(env, key, fileType);
+    const publicUrl = getPublicUrl(env, key);
 
     return new Response(
       JSON.stringify({ uploadUrl, fileKey: key, fileName, publicUrl }),

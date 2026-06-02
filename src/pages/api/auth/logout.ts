@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 export const prerender = false;
 import type { APIRoute } from "astro";
 import { getDb } from "../../../db";
@@ -8,7 +9,7 @@ export const POST: APIRoute = async (context) => {
   
   if (sessionToken) {
     try {
-      const db = getDb(context.locals.runtime.env);
+      const db = getDb(env);
       await invalidateSession(db, sessionToken);
     } catch (error) {
       console.error("Gagal menghapus sesi saat logout:", error);

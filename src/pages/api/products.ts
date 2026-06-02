@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { getDb } from "../../db";
@@ -39,7 +40,7 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
     const productId = crypto.randomUUID();
 
     // 3. Insert product

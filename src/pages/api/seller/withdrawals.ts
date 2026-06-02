@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { eq, and, sum } from "drizzle-orm";
@@ -31,7 +32,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const { amount } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // Fetch user details to verify bank details exist
     const sellerDetails = await db

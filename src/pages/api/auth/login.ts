@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 export const prerender = false;
 import type { APIRoute } from "astro";
 import { z } from "zod";
@@ -25,7 +26,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const { email, password } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // Find user in D1
     const user = await db

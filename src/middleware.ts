@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { defineMiddleware } from "astro:middleware";
 import { getDb } from "./db";
 import { validateSessionToken } from "./lib/auth";
@@ -22,7 +23,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (sessionToken) {
     try {
-      const db = getDb(context.locals.runtime.env);
+      const db = getDb(env);
       const { session, user } = await validateSessionToken(db, sessionToken);
 
       if (session && user) {

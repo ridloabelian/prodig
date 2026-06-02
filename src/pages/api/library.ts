@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "../../db";
@@ -17,7 +18,7 @@ export const GET: APIRoute = async (context) => {
 
     const { searchParams } = new URL(context.request.url);
     const trxId = searchParams.get("trx_id");
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     if (trxId) {
       // 1. Fetch single transaction by ID

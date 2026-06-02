@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -35,7 +36,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const { transactionId, rating, comment } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // 3. Find transaction
     const transaction = await db

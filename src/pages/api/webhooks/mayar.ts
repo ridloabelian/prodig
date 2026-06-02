@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { eq, and, sql, aliasedTable } from "drizzle-orm";
 import { getDb } from "../../../db";
@@ -13,7 +14,7 @@ import {
 export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
-  const env = context.locals.runtime.env;
+  const env = env;
   const db = getDb(env);
 
   try {

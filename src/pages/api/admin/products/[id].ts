@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -41,7 +42,7 @@ export const PATCH: APIRoute = async (context) => {
     }
 
     const { status } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // 3. Update status in D1
     await db

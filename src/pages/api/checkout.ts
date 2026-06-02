@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
@@ -35,7 +36,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const { productId, affiliateCode } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // 3. Find product
     const product = await db
@@ -93,7 +94,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     // 6. Calculate Fees & Tax (PPN 11%)
-    const platformFeePercent = parseInt(context.locals.runtime.env.PLATFORM_FEE_PERCENT || "10");
+    const platformFeePercent = parseInt(env.PLATFORM_FEE_PERCENT || "10");
     const commission = Math.floor((product.price * platformFeePercent) / 100);
     const netAmount = product.price - commission - affiliateCommission;
     const ppn = Math.floor((product.price * 11) / 100);
@@ -120,9 +121,9 @@ export const POST: APIRoute = async (context) => {
     });
 
     // 8. Generate Mayar Invoice
-    const appUrl = context.locals.runtime.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    const mayarRes = await createMayarInvoice(context.locals.runtime.env, {
+    const mayarRes = await createMayarInvoice(env, {
       amount: totalAmount,
       description: `Pembelian ${product.title} di Prodig.id`,
       customerName: user.name || "Customer",

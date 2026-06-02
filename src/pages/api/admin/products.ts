@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "../../../db";
@@ -19,7 +20,7 @@ export const GET: APIRoute = async (context) => {
     // 2. Fetch parameters
     const { searchParams } = new URL(context.request.url);
     const status = searchParams.get("status") || "PENDING";
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     // 3. Query products with joins
     let baseQuery = db

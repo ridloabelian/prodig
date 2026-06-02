@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -32,7 +33,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const { bankName, bankAccount } = parsed.data;
-    const db = getDb(context.locals.runtime.env);
+    const db = getDb(env);
 
     await db
       .update(users)
