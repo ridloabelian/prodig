@@ -1,0 +1,31 @@
+{
+	"compatibility_date": "2026-06-02",
+	"compatibility_flags": ["global_fetch_strictly_public"],
+	"name": "prodig",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "prodig-db",
+			"database_id": "db7fd875-e8ec-41e4-a1c3-8eb36f316c1b",
+			"migrations_dir": "drizzle/migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "R2_FILES",
+			"bucket_name": "prodig-files"
+		},
+		{
+			"binding": "R2_PUBLIC",
+			"bucket_name": "prodig-public"
+		}
+	]
+}
