@@ -28,3 +28,8 @@ dist/
 
 # jetbrains setting folder
 .idea/
+
+# log files
+*.log
+tail_output.log
+
