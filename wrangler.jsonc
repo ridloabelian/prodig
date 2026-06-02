@@ -32,6 +32,10 @@
 		"NEXT_PUBLIC_APP_URL": "https://prodig.ridloabelian.workers.dev",
 		"PLATFORM_FEE_PERCENT": "10",
 		"EMAIL_FROM": "noreply@prodig.id",
-		"NEXT_PUBLIC_R2_PUBLIC_DOMAIN": "pub-e42a1ce455fc4b109abfe1de0ac62109.r2.dev"
+		"NEXT_PUBLIC_R2_PUBLIC_DOMAIN": "pub-e42a1ce455fc4b109abfe1de0ac62109.r2.dev",
+		"R2_ACCOUNT_ID": "7094f29424a9d001e9550daa33874cda",
+		"R2_ACCESS_KEY_ID": "e36d080db728805d20d25a33a82f8a6a",
+		"R2_BUCKET_NAME": "prodig-files",
+		"R2_PUBLIC_BUCKET_NAME": "prodig-public"
 	}
 }
