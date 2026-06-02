@@ -1,0 +1,145 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+// Get redirect URL from query string
+const redirectUrl = Astro.url.searchParams.get("redirect") || "";
+---
+
+<Layout title="Masuk - Prodig Marketplace">
+  <div class="relative flex min-h-screen items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <!-- Background Glows -->
+    <div class="absolute top-1/3 left-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/10 blur-3xl"></div>
+    <div class="absolute bottom-10 right-10 -z-10 h-72 w-72 rounded-full bg-indigo-600/5 blur-3xl"></div>
+
+    <div class="w-full max-w-md space-y-8">
+      <!-- Title Card -->
+      <div class="text-center">
+        <a href="/" class="inline-flex items-center gap-2 mb-6">
+          <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-3xl font-extrabold text-transparent tracking-wider">
+            PRODIG
+          </span>
+        </a>
+        <h2 class="text-3xl font-bold tracking-tight text-white">
+          Masuk ke akun Anda
+        </h2>
+        <p class="mt-2 text-sm text-slate-400">
+          Atau mulai jualan produk digital Anda sendiri
+        </p>
+      </div>
+
+      <!-- Form Container -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 shadow-2xl backdrop-blur-xl">
+        <div id="error-alert" class="hidden mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+          <!-- Dinamic Error goes here -->
+        </div>
+
+        <form id="login-form" class="space-y-6">
+          <div>
+            <label for="email" class="block text-sm font-semibold text-slate-300">
+              Alamat Email
+            </label>
+            <input 
+              id="email" 
+              name="email" 
+              type="email" 
+              autocomplete="email" 
+              required 
+              placeholder="nama@email.com"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-semibold text-slate-300">
+              Password
+            </label>
+            <input 
+              id="password" 
+              name="password" 
+              type="password" 
+              autocomplete="current-password" 
+              required 
+              placeholder="••••••••"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            id="submit-btn"
+            class="relative flex w-full justify-center rounded-xl bg-violet-600 py-3 text-sm font-bold text-white shadow-lg shadow-violet-500/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Masuk
+          </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm">
+          <span class="text-slate-400">Belum punya akun?</span>
+          <a href={`/register${redirectUrl ? "?redirect=" + encodeURIComponent(redirectUrl) : ""}`} class="ml-1 font-bold text-violet-400 hover:underline">
+            Daftar Sekarang
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Script for Interactive Login -->
+  <script is:inline define:vars={{ redirectUrl }}>
+    const loginForm = document.getElementById("login-form");
+    const errorAlert = document.getElementById("error-alert");
+    const submitBtn = document.getElementById("submit-btn");
+
+    if (loginForm) {
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        // Clear previous error
+        errorAlert.classList.add("hidden");
+        errorAlert.textContent = "";
+        
+        // Loading state
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = "Memuat...";
+
+        const formData = new FormData(loginForm);
+        const email = formData.get("email");
+        const password = formData.get("password");
+
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            errorAlert.textContent = data.error || "Terjadi kesalahan. Silakan coba lagi.";
+            errorAlert.classList.remove("hidden");
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          } else {
+            // Login success: redirect based on user role and redirectUrl
+            const user = data.user;
+            
+            if (redirectUrl) {
+              window.location.href = redirectUrl;
+            } else if (user.role === "SELLER" || user.role === "ADMIN") {
+              window.location.href = "/dashboard";
+            } else {
+              window.location.href = "/library";
+            }
+          }
+        } catch (error) {
+          console.error("Gagal melakukan login:", error);
+          errorAlert.textContent = "Koneksi terputus. Pastikan Anda tersambung ke internet.";
+          errorAlert.classList.remove("hidden");
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      });
+    }
+  </script>
+</Layout>

@@ -16,14 +16,17 @@
     "@astrojs/cloudflare": "^13.6.1",
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^6.4.3",
+    "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "tailwindcss": "^4.3.0",
-    "wrangler": "^4.97.0"
+    "wrangler": "^4.97.0",
+    "zod": "^4.4.3"
   },
   "overrides": {
     "vite": "^7"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "drizzle-kit": "^0.31.10"
   }
 }

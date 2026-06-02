@@ -1,0 +1,193 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+// Get redirect URL from query string to pass to login page
+const redirectUrl = Astro.url.searchParams.get("redirect") || "";
+---
+
+<Layout title="Daftar - Prodig Marketplace">
+  <div class="relative flex min-h-screen items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <!-- Background Glows -->
+    <div class="absolute top-1/4 left-1/3 -z-10 h-[500px] w-[500px] rounded-full bg-violet-600/10 blur-3xl"></div>
+    <div class="absolute bottom-10 left-10 -z-10 h-72 w-72 rounded-full bg-indigo-600/5 blur-3xl"></div>
+
+    <div class="w-full max-w-md space-y-8">
+      <!-- Title Card -->
+      <div class="text-center">
+        <a href="/" class="inline-flex items-center gap-2 mb-6">
+          <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-3xl font-extrabold text-transparent tracking-wider">
+            PRODIG
+          </span>
+        </a>
+        <h2 class="text-3xl font-bold tracking-tight text-white">
+          Buat akun baru Anda
+        </h2>
+        <p class="mt-2 text-sm text-slate-400">
+          Gabung sebagai pembeli atau penjual produk digital lokal
+        </p>
+      </div>
+
+      <!-- Form Container -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 shadow-2xl backdrop-blur-xl">
+        <div id="error-alert" class="hidden mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+          <!-- Dynamic Error goes here -->
+        </div>
+
+        <div id="success-alert" class="hidden mb-6 rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm text-green-400">
+          Pendaftaran berhasil! Mengalihkan ke halaman masuk...
+        </div>
+
+        <form id="register-form" class="space-y-5">
+          <div>
+            <label for="name" class="block text-sm font-semibold text-slate-300">
+              Nama Lengkap
+            </label>
+            <input 
+              id="name" 
+              name="name" 
+              type="text" 
+              required 
+              placeholder="John Doe"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <div>
+            <label for="email" class="block text-sm font-semibold text-slate-300">
+              Alamat Email
+            </label>
+            <input 
+              id="email" 
+              name="email" 
+              type="email" 
+              autocomplete="email" 
+              required 
+              placeholder="nama@email.com"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-semibold text-slate-300">
+              Password (min. 6 karakter)
+            </label>
+            <input 
+              id="password" 
+              name="password" 
+              type="password" 
+              required 
+              minLength="6"
+              placeholder="••••••••"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <div>
+            <label for="role" class="block text-sm font-semibold text-slate-300">
+              Daftar Sebagai
+            </label>
+            <select 
+              id="role" 
+              name="role"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-300 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            >
+              <option value="BUYER">Pembeli (Unduh produk digital)</option>
+              <option value="SELLER">Penjual (Mulai menjual karya digital)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="whatsapp" class="block text-sm font-semibold text-slate-300">
+              Nomor WhatsApp <span class="text-xs text-slate-500 font-normal">(Opsional)</span>
+            </label>
+            <input 
+              id="whatsapp" 
+              name="whatsapp" 
+              type="tel" 
+              placeholder="6281234567890"
+              class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            id="submit-btn"
+            class="relative flex w-full justify-center rounded-xl bg-violet-600 py-3 text-sm font-bold text-white shadow-lg shadow-violet-500/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Daftar Sekarang
+          </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm">
+          <span class="text-slate-400">Sudah punya akun?</span>
+          <a href={`/login${redirectUrl ? "?redirect=" + encodeURIComponent(redirectUrl) : ""}`} class="ml-1 font-bold text-violet-400 hover:underline">
+            Masuk
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Script for Interactive Registration -->
+  <script is:inline define:vars={{ redirectUrl }}>
+    const registerForm = document.getElementById("register-form");
+    const errorAlert = document.getElementById("error-alert");
+    const successAlert = document.getElementById("success-alert");
+    const submitBtn = document.getElementById("submit-btn");
+
+    if (registerForm) {
+      registerForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        // Clear previous alerts
+        errorAlert.classList.add("hidden");
+        errorAlert.textContent = "";
+        successAlert.classList.add("hidden");
+        
+        // Loading state
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = "Memuat...";
+
+        const formData = new FormData(registerForm);
+        const name = formData.get("name");
+        const email = formData.get("email");
+        const password = formData.get("password");
+        const role = formData.get("role");
+        const whatsapp = formData.get("whatsapp");
+
+        try {
+          const res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email, password, role, whatsapp }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            errorAlert.textContent = data.error || "Pendaftaran gagal. Silakan coba lagi.";
+            errorAlert.classList.remove("hidden");
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          } else {
+            // Show success and redirect to login
+            successAlert.classList.remove("hidden");
+            registerForm.reset();
+            
+            setTimeout(() => {
+              const loginPath = `/login${redirectUrl ? "?redirect=" + encodeURIComponent(redirectUrl) : ""}`;
+              window.location.href = loginPath;
+            }, 1500);
+          }
+        } catch (error) {
+          console.error("Gagal melakukan pendaftaran:", error);
+          errorAlert.textContent = "Koneksi terputus. Pastikan Anda tersambung ke internet.";
+          errorAlert.classList.remove("hidden");
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      });
+    }
+  </script>
+</Layout>
