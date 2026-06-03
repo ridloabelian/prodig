@@ -29,7 +29,7 @@
 		}
 	],
 	"vars": {
-		"NEXT_PUBLIC_APP_URL": "https://prodig.ridloabelian.workers.dev",
+		"NEXT_PUBLIC_APP_URL": "https://prodig.id",
 		"PLATFORM_FEE_PERCENT": "10",
 		"EMAIL_FROM": "noreply@prodig.id",
 		"NEXT_PUBLIC_R2_PUBLIC_DOMAIN": "pub-e42a1ce455fc4b109abfe1de0ac62109.r2.dev",

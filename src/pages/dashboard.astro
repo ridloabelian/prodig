@@ -4,7 +4,7 @@ export const prerender = false;
 
 import Layout from "../layouts/Layout.astro";
 import { getDb } from "../db";
-import { products, transactions, withdrawals, categories, users } from "../db/schema";
+import { products, transactions, withdrawals, categories, users, landingPages } from "../db/schema";
 import { eq, and, desc, sum, count } from "drizzle-orm";
 
 const user = Astro.locals.user;
@@ -86,9 +86,12 @@ try {
       viewCount: products.viewCount,
       createdAt: products.createdAt,
       categoryName: categories.name,
+      lpSlug: landingPages.slug,
+      lpStatus: landingPages.status,
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
+    .leftJoin(landingPages, eq(products.id, landingPages.productId))
     .where(eq(products.sellerId, user.id))
     .orderBy(desc(products.createdAt));
 
@@ -254,6 +257,7 @@ const formatIDR = (val: number) => {
                     <th class="p-4 font-semibold text-center">Dilihat</th>
                     <th class="p-4 font-semibold text-center">Terjual</th>
                     <th class="p-4 font-semibold">Status</th>
+                    <th class="p-4 font-semibold">Landing Page</th>
                     <th class="p-4 font-semibold">Tanggal Rilis</th>
                   </tr>
                 </thead>
@@ -285,6 +289,34 @@ const formatIDR = (val: number) => {
                         )}
                         {prod.status === "HIDDEN" && (
                           <span class="rounded bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-400">Hidden</span>
+                        )}
+                      </td>
+                      <td class="p-4">
+                        {prod.lpSlug ? (
+                          <div class="flex flex-col gap-1.5">
+                            <div class="flex items-center gap-2">
+                              {prod.lpStatus === "PUBLISHED" ? (
+                                <span class="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">Published</span>
+                              ) : (
+                                <span class="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-400 border border-slate-700">Draft</span>
+                              )}
+                              <a href={`/lp/${prod.lpSlug}`} target="_blank" class="text-xs text-violet-400 hover:text-violet-300 font-bold hover:underline inline-flex items-center gap-0.5 transition-colors">
+                                Lihat
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                              </a>
+                            </div>
+                            <div class="flex items-center gap-2">
+                              <a href={`/dashboard/landingpages/builder?productId=${prod.id}`} class="text-[11px] text-slate-400 hover:text-white transition-colors">Edit</a>
+                              <button type="button" class="delete-lp-btn text-[11px] text-red-500/80 hover:text-red-400 transition-colors cursor-pointer" data-product-id={prod.id}>Hapus</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <a 
+                            href={`/dashboard/landingpages/builder?productId=${prod.id}`} 
+                            class="inline-flex items-center gap-1 rounded bg-violet-500/10 hover:bg-violet-500/20 px-2.5 py-1 text-xs font-bold text-violet-400 border border-violet-500/20 transition-all"
+                          >
+                            Buat LP (AI) &rarr;
+                          </a>
                         )}
                       </td>
                       <td class="p-4 text-xs text-slate-400">
@@ -615,6 +647,40 @@ const formatIDR = (val: number) => {
         wdMsg.classList.remove("hidden");
         submitWdBtn.disabled = false;
       }
+    });
+
+    // Landing Page Delete Button Handler
+    const deleteLpBtns = document.querySelectorAll(".delete-lp-btn");
+    deleteLpBtns.forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        if (!confirm("Apakah Anda yakin ingin menghapus landing page untuk produk ini?")) {
+          return;
+        }
+        const productId = btn.getAttribute("data-product-id");
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = "Menghapus...";
+        
+        try {
+          const res = await fetch(`/api/landingpages?productId=${productId}`, {
+            method: "DELETE"
+          });
+          const data = await res.json();
+          if (res.ok) {
+            window.location.reload();
+          } else {
+            alert(data.error || "Gagal menghapus landing page.");
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        } catch (err) {
+          console.error("Gagal menghapus LP:", err);
+          alert("Koneksi bermasalah.");
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      });
     });
   </script>
 

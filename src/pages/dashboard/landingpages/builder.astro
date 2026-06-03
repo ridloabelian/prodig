@@ -1,0 +1,1020 @@
+---
+import { env } from "cloudflare:workers";
+export const prerender = false;
+
+import Layout from "../../../layouts/Layout.astro";
+import { getDb } from "../../../db";
+import { products, landingPages } from "../../../db/schema";
+import { eq } from "drizzle-orm";
+
+const user = Astro.locals.user;
+if (!user || (user.role !== "SELLER" && user.role !== "ADMIN")) {
+  return Astro.redirect("/login?redirect=" + encodeURIComponent(Astro.url.pathname));
+}
+
+const productId = Astro.url.searchParams.get("productId");
+if (!productId) {
+  return Astro.redirect("/dashboard");
+}
+
+let product: any = null;
+let existingLp: any = null;
+let errorMsg = "";
+
+try {
+  const db = getDb(env);
+  product = await db
+    .select()
+    .from(products)
+    .where(eq(products.id, productId))
+    .get();
+
+  if (!product || (product.sellerId !== user.id && user.role !== "ADMIN")) {
+    return Astro.redirect("/dashboard");
+  }
+
+  existingLp = await db
+    .select()
+    .from(landingPages)
+    .where(eq(landingPages.productId, productId))
+    .get();
+} catch (e: any) {
+  console.error("Gagal memuat data untuk landing page builder:", e);
+  errorMsg = e.message;
+}
+---
+
+<Layout title={`Landing Page Builder - ${product?.title || "Prodig"}`}>
+  <div class="min-h-screen bg-slate-950 flex flex-col">
+    <!-- Builder Header -->
+    <header class="h-16 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md px-6 flex items-center justify-between z-10">
+      <div class="flex items-center gap-3">
+        <a href="/dashboard" class="flex items-center text-slate-400 hover:text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
+          Dashboard
+        </a>
+        <div class="h-4 w-px bg-slate-800"></div>
+        <span class="text-sm font-bold text-white max-w-[200px] sm:max-w-[300px] truncate">{product?.title}</span>
+        <span class="text-xs bg-slate-800 text-slate-400 rounded-md px-2 py-0.5 border border-slate-700">Builder</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <select id="lp-status" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-300 outline-none focus:border-violet-500">
+          <option value="DRAFT">Draft</option>
+          <option value="PUBLISHED">Published</option>
+        </select>
+        <button id="save-btn" class="bg-violet-500 hover:bg-violet-400 text-slate-950 text-xs font-black rounded-xl px-4 py-2 shadow-lg shadow-violet-500/10 transition-all active:scale-[0.98]">
+          Simpan Halaman
+        </button>
+      </div>
+    </header>
+
+    {errorMsg ? (
+      <div class="flex-1 flex items-center justify-center p-8">
+        <div class="bg-red-500/10 border border-red-500/20 text-red-400 p-6 rounded-2xl max-w-md w-full text-center">
+          <h2 class="text-xl font-bold mb-2">Terjadi Kesalahan</h2>
+          <p class="text-sm">{errorMsg}</p>
+          <a href="/dashboard" class="inline-block mt-4 text-xs font-bold text-white bg-slate-800 px-4 py-2 rounded-xl">Kembali ke Dashboard</a>
+        </div>
+      </div>
+    ) : (
+      <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <!-- Editor Sidebar (Left) -->
+        <div class="w-full lg:w-[45%] xl:w-[35%] border-r border-slate-800 flex flex-col bg-slate-950 overflow-y-auto max-h-[calc(100vh-4rem)]">
+          <!-- Notification Toast -->
+          <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-slate-950 px-4 py-3 rounded-2xl shadow-xl font-bold text-sm hidden transition-all duration-300 z-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span id="toast-msg">Landing page berhasil disimpan!</span>
+          </div>
+
+          <!-- AI Generator Prompt Panel -->
+          <div class="p-6 border-b border-slate-800/80 bg-slate-900/10">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-violet-400"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5Z"/><path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"/></svg>
+              AI Copywriter Assistant
+            </h2>
+            <p class="mt-1.5 text-xs text-slate-400">Tulis instruksi atau biarkan kosong untuk menghasilkan copy landing page premium otomatis.</p>
+            
+            <div class="mt-4 space-y-3">
+              <textarea 
+                id="ai-prompt" 
+                rows="3" 
+                placeholder="Contoh: Tekankan pada jaminan uang kembali, targetkan desainer grafis pemula, tambahkan info bonus video tutorial 2 jam..." 
+                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-violet-500 transition-colors"
+              ></textarea>
+              <button 
+                id="generate-btn" 
+                class="w-full bg-slate-900 hover:bg-slate-850 text-white border border-slate-800 hover:border-violet-500 text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <span class="spinner hidden animate-spin border-2 border-slate-400 border-t-white h-4 w-4 rounded-full"></span>
+                <span class="btn-text">Bangun Landing Page dengan AI ✨</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Configuration Fields -->
+          <div class="p-6 space-y-8">
+            <!-- Section: Halaman & Tema -->
+            <div class="space-y-4">
+              <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Halaman & Tema</h3>
+              
+              <div>
+                <label for="lp-slug" class="block text-xs font-semibold text-slate-300">URL / Slug Halaman</label>
+                <div class="mt-2 flex items-center rounded-xl border border-slate-800 bg-slate-950 overflow-hidden focus-within:border-violet-500">
+                  <span class="bg-slate-900 text-slate-500 px-3 py-2 text-xs select-none">prodig.id/lp/</span>
+                  <input 
+                    id="lp-slug" 
+                    type="text" 
+                    class="flex-1 bg-transparent border-0 px-3 py-2 text-xs text-slate-100 outline-none placeholder-slate-600"
+                    placeholder="nama-produk"
+                  />
+                </div>
+                <p class="mt-1 text-[10px] text-slate-500">Gunakan huruf kecil, angka, dan tanda hubung (-)</p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300">Pilih Warna & Tema</label>
+                <div class="grid grid-cols-2 gap-3 mt-2">
+                  <button type="button" data-theme="midnight" class="theme-select-btn border border-violet-500/40 bg-slate-900 p-2.5 rounded-xl text-left transition-all hover:bg-slate-850 flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-violet-500 shadow-md"></span>
+                    <span class="text-xs font-bold text-white">Midnight Violet</span>
+                  </button>
+                  <button type="button" data-theme="emerald" class="theme-select-btn border border-slate-800 bg-slate-900 p-2.5 rounded-xl text-left transition-all hover:bg-slate-850 flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-md"></span>
+                    <span class="text-xs font-bold text-slate-300">Emerald Fresh</span>
+                  </button>
+                  <button type="button" data-theme="ocean" class="theme-select-btn border border-slate-800 bg-slate-900 p-2.5 rounded-xl text-left transition-all hover:bg-slate-850 flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-cyan-500 shadow-md"></span>
+                    <span class="text-xs font-bold text-slate-300">Ocean Deep</span>
+                  </button>
+                  <button type="button" data-theme="sunset" class="theme-select-btn border border-slate-800 bg-slate-900 p-2.5 rounded-xl text-left transition-all hover:bg-slate-850 flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-amber-500 shadow-md"></span>
+                    <span class="text-xs font-bold text-slate-300">Sunset Glow</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label for="lp-meta-title" class="block text-xs font-semibold text-slate-300">Judul SEO</label>
+                  <input id="lp-meta-title" type="text" class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none focus:border-violet-500" />
+                </div>
+                <div>
+                  <label for="lp-meta-desc" class="block text-xs font-semibold text-slate-300">Subjudul SEO</label>
+                  <input id="lp-meta-desc" type="text" class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none focus:border-violet-500" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Section: Hero & Headline -->
+            <div class="space-y-4 pt-6 border-t border-slate-850">
+              <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Hero Section (Headline)</h3>
+              
+              <div>
+                <label for="lp-hero-title" class="block text-xs font-semibold text-slate-300">Judul Utama (Headline)</label>
+                <input id="lp-hero-title" type="text" class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-xs text-slate-100 font-bold outline-none focus:border-violet-500" />
+              </div>
+              
+              <div>
+                <label for="lp-hero-subtitle" class="block text-xs font-semibold text-slate-300">Sub-headline</label>
+                <textarea id="lp-hero-subtitle" rows="3" class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none focus:border-violet-500"></textarea>
+              </div>
+
+              <div>
+                <label for="lp-hero-features" class="block text-xs font-semibold text-slate-300">Benefit Singkat Hero (Pisahkan dengan koma)</label>
+                <input id="lp-hero-features" type="text" placeholder="e.g. Akses Selamanya, File Aset Master, Gratis Update" class="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-xs text-slate-100 outline-none focus:border-violet-500" />
+              </div>
+            </div>
+
+            <!-- Section: Keunggulan (Features) -->
+            <div class="space-y-4 pt-6 border-t border-slate-850">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Keunggulan Produk (Features)</h3>
+                <button type="button" id="add-feature-btn" class="text-[10px] bg-slate-900 border border-slate-800 px-2 py-1 rounded-md text-violet-400 hover:text-white font-bold transition-colors">+ Tambah</button>
+              </div>
+              
+              <div id="features-container" class="space-y-3">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Section: Testimonial -->
+            <div class="space-y-4 pt-6 border-t border-slate-850">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Testimonial Pembeli</h3>
+                <button type="button" id="add-testimonial-btn" class="text-[10px] bg-slate-900 border border-slate-800 px-2 py-1 rounded-md text-violet-400 hover:text-white font-bold transition-colors">+ Tambah</button>
+              </div>
+              
+              <div id="testimonials-container" class="space-y-3">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Section: FAQ -->
+            <div class="space-y-4 pt-6 border-t border-slate-850">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Pertanyaan Umum (FAQ)</h3>
+                <button type="button" id="add-faq-btn" class="text-[10px] bg-slate-900 border border-slate-800 px-2 py-1 rounded-md text-violet-400 hover:text-white font-bold transition-colors">+ Tambah</button>
+              </div>
+              
+              <div id="faqs-container" class="space-y-3">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Pane (Right) -->
+        <div class="hidden lg:flex flex-1 flex-col bg-slate-900 overflow-hidden relative">
+          <!-- Device / Action bar -->
+          <div class="h-12 border-b border-slate-800 bg-slate-950 px-4 flex items-center justify-between text-xs text-slate-400 z-10">
+            <div class="flex items-center gap-3">
+              <button id="device-desktop" class="flex items-center gap-1 font-bold text-white px-2 py-1 bg-slate-900 rounded-md">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Desktop
+              </button>
+              <button id="device-mobile" class="flex items-center gap-1 hover:text-white px-2 py-1 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                Mobile
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="text-[11px] font-semibold text-slate-300">Live Preview (Auto-Sync)</span>
+              <a id="view-live-btn" href="#" target="_blank" class="hidden ml-2 text-violet-400 hover:text-violet-300 font-bold items-center gap-0.5 transition-colors">
+                Lihat Website
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- Preview Frame Wrapper -->
+          <div class="flex-1 p-8 flex items-center justify-center bg-slate-900 overflow-y-auto">
+            <!-- Simulated viewport -->
+            <div id="preview-viewport" class="w-full h-full bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-y-auto transition-all duration-300 max-w-full">
+              <!-- Renders landing page markup dynamically -->
+              <div id="preview-render-content" class="w-full text-slate-100 min-h-full">
+                <!-- Landing page template injection -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>
+
+<!-- Client code variable sharing -->
+<script is:inline define:vars={{
+  productId,
+  productTitle,
+  productPrice,
+  productThumbnail,
+  existingLp
+}}></script>
+
+<script>
+  // Dynamic variables passed from Astro
+  declare const productId: string;
+  declare const productTitle: string;
+  declare const productPrice: number;
+  declare const productThumbnail: string;
+  declare const existingLp: any;
+
+  // 1. Initial State Definition
+  const state = {
+    productId: productId,
+    slug: existingLp?.slug || slugify(productTitle),
+    title: existingLp?.title || productTitle,
+    subtitle: existingLp?.subtitle || `Aset digital premium terlengkap untuk menghemat waktu dan meningkatkan kualitas pekerjaan Anda.`,
+    theme: existingLp?.theme || "midnight",
+    prompt: existingLp?.prompt || "",
+    status: existingLp?.status || "DRAFT",
+    heroTitle: existingLp?.heroTitle || `Raih Hasil Maksimal Instan dengan ${productTitle}!`,
+    heroSubtitle: existingLp?.heroSubtitle || `Dapatkan file master ${productTitle} siap pakai berkualitas premium. Diuji dan dirancang oleh ahli di bidangnya.`,
+    heroFeatures: existingLp?.heroFeatures || ["Akses Selamanya", "Update Gratis Berkala", "100% Transaksi Aman"],
+    features: existingLp?.features || [
+      { title: "Desain Premium & Rapih", description: "Didesain dengan perhatian tinggi pada setiap detail dan estetika modern.", icon: "award" },
+      { title: "Sangat Menghemat Waktu", description: "Lompati pengerjaan berhari-hari. Dapatkan hasil instan hanya dalam beberapa klik.", icon: "zap" },
+      { title: "Mudah Disesuaikan", description: "File yang sangat terstruktur sehingga mudah dimodifikasi sesuai keperluan Anda.", icon: "cpu" }
+    ],
+    testimonials: existingLp?.testimonials || [
+      { name: "Budi Setiawan", role: "Freelance Creator", content: "Luar biasa! File ini sangat membantu menghemat waktu saya. Benar-benar sepadan dengan harganya.", rating: 5 },
+      { name: "Indah Permata", role: "Digital Marketer", content: "Kualitas aset digitalnya premium. Layoutnya rapi dan sangat mudah digunakan.", rating: 5 }
+    ],
+    faqs: existingLp?.faqs || [
+      { question: "Bagaimana cara mendownload produk ini?", answer: "Setelah pembayaran berhasil di Mayar, Anda akan langsung dialihkan ke tombol download instan dan menerima link download cadangan di email." },
+      { question: "Apakah ada biaya tambahan untuk update?", answer: "Tidak ada. Anda berhak mendapatkan akses pembaruan secara gratis jika seller melakukan update produk ini di kemudian hari." }
+    ]
+  };
+
+  // Helper: Slugify text
+  function slugify(text: string) {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  // Format IDR Helper
+  function formatPrice(val: number) {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0
+    }).format(val);
+  }
+
+  // Lucide SVG Icon mapping
+  const svgIcons: Record<string, string> = {
+    zap: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+    award: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`,
+    shield: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8-2a1 1 0 0 1 .48 0l8 2A1 1 0 0 1 20 6v7z"/></svg>`,
+    cpu: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 15h3"/><path d="M1 9h3"/><path d="M1 15h3"/></svg>`,
+    users: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    "book-open": `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+    star: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+  };
+
+  function getIconSvg(name: string) {
+    return svgIcons[name] || svgIcons.zap;
+  }
+
+  // 2. DOM Elements Mapping
+  const elements = {
+    slug: document.getElementById("lp-slug") as HTMLInputElement,
+    title: document.getElementById("lp-meta-title") as HTMLInputElement,
+    subtitle: document.getElementById("lp-meta-desc") as HTMLInputElement,
+    status: document.getElementById("lp-status") as HTMLSelectElement,
+    heroTitle: document.getElementById("lp-hero-title") as HTMLInputElement,
+    heroSubtitle: document.getElementById("lp-hero-subtitle") as HTMLTextAreaElement,
+    heroFeatures: document.getElementById("lp-hero-features") as HTMLInputElement,
+    
+    featuresContainer: document.getElementById("features-container") as HTMLDivElement,
+    testimonialsContainer: document.getElementById("testimonials-container") as HTMLDivElement,
+    faqsContainer: document.getElementById("faqs-container") as HTMLDivElement,
+    
+    previewContainer: document.getElementById("preview-render-content") as HTMLDivElement,
+    previewViewport: document.getElementById("preview-viewport") as HTMLDivElement,
+    
+    // Buttons
+    deviceDesktop: document.getElementById("device-desktop") as HTMLButtonElement,
+    deviceMobile: document.getElementById("device-mobile") as HTMLButtonElement,
+    generateBtn: document.getElementById("generate-btn") as HTMLButtonElement,
+    saveBtn: document.getElementById("save-btn") as HTMLButtonElement,
+    viewLiveBtn: document.getElementById("view-live-btn") as HTMLAnchorElement,
+    aiPrompt: document.getElementById("ai-prompt") as HTMLTextAreaElement,
+    
+    addFeature: document.getElementById("add-feature-btn") as HTMLButtonElement,
+    addTestimonial: document.getElementById("add-testimonial-btn") as HTMLButtonElement,
+    addFaq: document.getElementById("add-faq-btn") as HTMLButtonElement,
+    
+    toast: document.getElementById("toast") as HTMLDivElement,
+    toastMsg: document.getElementById("toast-msg") as HTMLSpanElement,
+  };
+
+  // 3. Initialize Forms from State
+  function syncStateToForm() {
+    if (!elements.slug) return;
+    elements.slug.value = state.slug;
+    elements.title.value = state.title;
+    elements.subtitle.value = state.subtitle;
+    elements.status.value = state.status;
+    elements.heroTitle.value = state.heroTitle;
+    elements.heroSubtitle.value = state.heroSubtitle;
+    elements.heroFeatures.value = state.heroFeatures.join(", ");
+    
+    // Highlight correct theme button
+    document.querySelectorAll(".theme-select-btn").forEach((btn: any) => {
+      const btnTheme = btn.getAttribute("data-theme");
+      if (btnTheme === state.theme) {
+        btn.classList.add("border-violet-500/80", "bg-violet-950/20");
+        btn.classList.remove("border-slate-800");
+      } else {
+        btn.classList.remove("border-violet-500/80", "bg-violet-950/20");
+        btn.classList.add("border-slate-800");
+      }
+    });
+
+    renderFeaturesForm();
+    renderTestimonialsForm();
+    renderFaqsForm();
+    renderPreview();
+    updateLiveViewBtn();
+  }
+
+  function updateLiveViewBtn() {
+    if (existingLp && elements.viewLiveBtn) {
+      elements.viewLiveBtn.href = `/lp/${state.slug}`;
+      elements.viewLiveBtn.classList.remove("hidden");
+      elements.viewLiveBtn.classList.add("flex");
+    }
+  }
+
+  // --- FEATURES FORM RENDER ---
+  function renderFeaturesForm() {
+    elements.featuresContainer.innerHTML = "";
+    state.features.forEach((feat, idx) => {
+      const featDiv = document.createElement("div");
+      featDiv.className = "p-4 border border-slate-900 bg-slate-900/30 rounded-xl space-y-3 relative group";
+      featDiv.innerHTML = `
+        <button type="button" class="remove-feature absolute top-3 right-3 text-slate-500 hover:text-red-400 text-xs font-bold" data-idx="${idx}">
+          Hapus
+        </button>
+        <div class="grid grid-cols-4 gap-2">
+          <div class="col-span-1">
+            <label class="block text-[10px] font-semibold text-slate-400">Ikon</label>
+            <select class="feature-icon mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg p-1 text-[11px] text-slate-200 outline-none" data-idx="${idx}">
+              <option value="zap" ${feat.icon === 'zap' ? 'selected' : ''}>Zap</option>
+              <option value="award" ${feat.icon === 'award' ? 'selected' : ''}>Award</option>
+              <option value="shield" ${feat.icon === 'shield' ? 'selected' : ''}>Shield</option>
+              <option value="cpu" ${feat.icon === 'cpu' ? 'selected' : ''}>CPU</option>
+              <option value="users" ${feat.icon === 'users' ? 'selected' : ''}>Users</option>
+              <option value="book-open" ${feat.icon === 'book-open' ? 'selected' : ''}>Book</option>
+              <option value="star" ${feat.icon === 'star' ? 'selected' : ''}>Star</option>
+            </select>
+          </div>
+          <div class="col-span-3">
+            <label class="block text-[10px] font-semibold text-slate-400">Judul Keunggulan</label>
+            <input type="text" class="feature-title mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none" value="${escapeHtml(feat.title)}" data-idx="${idx}"/>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-400">Deskripsi Ringkas</label>
+          <textarea rows="2" class="feature-desc mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none" data-idx="${idx}">${escapeHtml(feat.description)}</textarea>
+        </div>
+      `;
+      elements.featuresContainer.appendChild(featDiv);
+    });
+
+    // Wire up events
+    document.querySelectorAll(".feature-icon").forEach((el: any) => {
+      el.addEventListener("change", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.features[idx].icon = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".feature-title").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.features[idx].title = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".feature-desc").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.features[idx].description = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".remove-feature").forEach((el: any) => {
+      el.addEventListener("click", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.features.splice(idx, 1);
+        renderFeaturesForm();
+        renderPreview();
+      });
+    });
+  }
+
+  // --- TESTIMONIALS FORM RENDER ---
+  function renderTestimonialsForm() {
+    elements.testimonialsContainer.innerHTML = "";
+    state.testimonials.forEach((test, idx) => {
+      const testDiv = document.createElement("div");
+      testDiv.className = "p-4 border border-slate-900 bg-slate-900/30 rounded-xl space-y-3 relative group";
+      testDiv.innerHTML = `
+        <button type="button" class="remove-testimonial absolute top-3 right-3 text-slate-500 hover:text-red-400 text-xs font-bold" data-idx="${idx}">
+          Hapus
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-400">Nama Pembeli</label>
+            <input type="text" class="testi-name mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none" value="${escapeHtml(test.name)}" data-idx="${idx}"/>
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-400">Pekerjaan/Status</label>
+            <input type="text" class="testi-role mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none" value="${escapeHtml(test.role)}" data-idx="${idx}"/>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-400">Isi Testimoni</label>
+          <textarea rows="2" class="testi-content mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none" data-idx="${idx}">${escapeHtml(test.content)}</textarea>
+        </div>
+      `;
+      elements.testimonialsContainer.appendChild(testDiv);
+    });
+
+    // Wire events
+    document.querySelectorAll(".testi-name").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.testimonials[idx].name = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".testi-role").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.testimonials[idx].role = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".testi-content").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.testimonials[idx].content = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".remove-testimonial").forEach((el: any) => {
+      el.addEventListener("click", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.testimonials.splice(idx, 1);
+        renderTestimonialsForm();
+        renderPreview();
+      });
+    });
+  }
+
+  // --- FAQS FORM RENDER ---
+  function renderFaqsForm() {
+    elements.faqsContainer.innerHTML = "";
+    state.faqs.forEach((faq, idx) => {
+      const faqDiv = document.createElement("div");
+      faqDiv.className = "p-4 border border-slate-900 bg-slate-900/30 rounded-xl space-y-3 relative group";
+      faqDiv.innerHTML = `
+        <button type="button" class="remove-faq absolute top-3 right-3 text-slate-500 hover:text-red-400 text-xs font-bold" data-idx="${idx}">
+          Hapus
+        </button>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-400">Pertanyaan</label>
+          <input type="text" class="faq-question mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 font-semibold outline-none" value="${escapeHtml(faq.question)}" data-idx="${idx}"/>
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-400">Jawaban</label>
+          <textarea rows="2" class="faq-answer mt-1.5 w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none" data-idx="${idx}">${escapeHtml(faq.answer)}</textarea>
+        </div>
+      `;
+      elements.faqsContainer.appendChild(faqDiv);
+    });
+
+    // Wire events
+    document.querySelectorAll(".faq-question").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.faqs[idx].question = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".faq-answer").forEach((el: any) => {
+      el.addEventListener("input", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.faqs[idx].answer = e.target.value;
+        renderPreview();
+      });
+    });
+    document.querySelectorAll(".remove-faq").forEach((el: any) => {
+      el.addEventListener("click", (e: any) => {
+        const idx = parseInt(e.target.getAttribute("data-idx"));
+        state.faqs.splice(idx, 1);
+        renderFaqsForm();
+        renderPreview();
+      });
+    });
+  }
+
+  // --- RENDER LIVE PREVIEW ---
+  function renderPreview() {
+    if (!elements.previewContainer) return;
+
+    // Apply color theme dynamically on the preview context
+    let themeColorClasses = {
+      primaryText: "text-violet-400",
+      bgGradient: "from-violet-600 to-indigo-600",
+      btnClass: "bg-violet-500 hover:bg-violet-400 text-slate-950 shadow-violet-500/20",
+      accentBg: "bg-violet-500/5 border-violet-500/10",
+      accentText: "text-violet-400",
+      pillClass: "bg-violet-500/10 text-violet-400 border-violet-500/20"
+    };
+
+    if (state.theme === "emerald") {
+      themeColorClasses = {
+        primaryText: "text-emerald-400",
+        bgGradient: "from-emerald-600 to-teal-600",
+        btnClass: "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20",
+        accentBg: "bg-emerald-500/5 border-emerald-500/10",
+        accentText: "text-emerald-400",
+        pillClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+      };
+    } else if (state.theme === "ocean") {
+      themeColorClasses = {
+        primaryText: "text-cyan-400",
+        bgGradient: "from-cyan-600 to-blue-600",
+        btnClass: "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/20",
+        accentBg: "bg-cyan-500/5 border-cyan-500/10",
+        accentText: "text-cyan-400",
+        pillClass: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+      };
+    } else if (state.theme === "sunset") {
+      themeColorClasses = {
+        primaryText: "text-amber-400",
+        bgGradient: "from-amber-500 to-orange-600",
+        btnClass: "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20",
+        accentBg: "bg-amber-500/5 border-amber-500/10",
+        accentText: "text-amber-400",
+        pillClass: "bg-amber-500/10 text-amber-400 border-amber-500/20"
+      };
+    }
+
+    // Build features grid
+    const featuresHtml = state.features.map(feat => `
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/20 p-6 flex flex-col gap-4">
+        <div class="rounded-xl w-10 h-10 flex items-center justify-center bg-slate-900 border border-slate-800">
+          ${getIconSvg(feat.icon)}
+        </div>
+        <div>
+          <h4 class="text-sm font-black text-white">${escapeHtml(feat.title)}</h4>
+          <p class="mt-2 text-xs text-slate-400 leading-relaxed">${escapeHtml(feat.description)}</p>
+        </div>
+      </div>
+    `).join("");
+
+    // Build testimonials list
+    const testimonialsHtml = state.testimonials.length > 0 
+      ? `
+        <section class="py-12 border-t border-slate-900 bg-slate-950/40">
+          <div class="max-w-4xl mx-auto px-6">
+            <h3 class="text-center text-xl font-black text-white">Apa Kata Pembeli Kami?</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              ${state.testimonials.map(test => `
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/10 p-6 space-y-4">
+                  <div class="flex items-center gap-0.5 text-amber-400">
+                    ${Array(test.rating).fill(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`).join("")}
+                  </div>
+                  <p class="text-xs text-slate-300 italic">"${escapeHtml(test.content)}"</p>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">${escapeHtml(test.name)}</h5>
+                    <p class="text-[10px] text-slate-500">${escapeHtml(test.role || 'Pembeli')}</p>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </section>
+      ` 
+      : "";
+
+    // Build FAQs list
+    const faqsHtml = state.faqs.length > 0 
+      ? `
+        <section class="py-12 border-t border-slate-900">
+          <div class="max-w-3xl mx-auto px-6">
+            <h3 class="text-center text-xl font-black text-white">Pertanyaan yang Sering Diajukan</h3>
+            <div class="mt-8 space-y-4">
+              ${state.faqs.map((faq, fIdx) => `
+                <div class="rounded-xl border border-slate-800 bg-slate-900/10 p-4 space-y-2">
+                  <h4 class="text-xs font-black text-white flex items-center justify-between">
+                    <span>${escapeHtml(faq.question)}</span>
+                  </h4>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">${escapeHtml(faq.answer)}</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </section>
+      ` 
+      : "";
+
+    // Hero Features Badges
+    const heroFeaturesBadges = state.heroFeatures.map(item => `
+      <span class="inline-flex items-center gap-1 text-[10px] font-bold ${themeColorClasses.pillClass} px-2.5 py-1 rounded-full border">
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-preview"><polyline points="20 6 9 17 4 12"/></svg>
+        ${escapeHtml(item)}
+      </span>
+    `).join("");
+
+    // Output template
+    elements.previewContainer.innerHTML = `
+      <div class="font-sans antialiased text-slate-200">
+        <!-- Hero Section -->
+        <section class="relative py-16 px-6 overflow-hidden flex flex-col items-center text-center">
+          <div class="absolute inset-0 bg-radial-gradient from-violet-500/10 via-transparent to-transparent opacity-50"></div>
+          
+          <div class="max-w-3xl mx-auto space-y-6 relative z-10">
+            <div class="flex flex-wrap justify-center gap-2 mb-2">
+              ${heroFeaturesBadges}
+            </div>
+            
+            <h1 class="text-2xl sm:text-4xl font-extrabold text-white leading-tight">
+              ${escapeHtml(state.heroTitle)}
+            </h1>
+            
+            <p class="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
+              ${escapeHtml(state.heroSubtitle)}
+            </p>
+
+            <!-- Product Card Integration -->
+            <div class="rounded-3xl border border-slate-800 bg-slate-900/30 p-6 max-w-md mx-auto flex items-center gap-4 text-left shadow-xl mt-8">
+              <img src="${productThumbnail || '/placeholder.png'}" class="w-20 h-20 rounded-xl object-cover border border-slate-800" alt="Thumbnail" />
+              <div class="flex-1 space-y-1.5">
+                <h4 class="text-xs font-black text-white truncate">${escapeHtml(productTitle)}</h4>
+                <div class="text-sm font-extrabold ${themeColorClasses.primaryText}">${formatPrice(productPrice)}</div>
+                <button type="button" class="w-full ${themeColorClasses.btnClass} rounded-xl py-2 text-xs font-black tracking-wide shadow-md active:scale-95 transition-all">
+                  Beli Sekarang &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="py-12 px-6 border-t border-slate-900 bg-slate-950/20">
+          <div class="max-w-4xl mx-auto space-y-8">
+            <div class="text-center">
+              <h3 class="text-xl font-black text-white">Kenapa Harus Membeli Produk Ini?</h3>
+              <p class="mt-2 text-xs text-slate-500 max-w-md mx-auto">Kami merancang materi ini dengan standar tertinggi untuk menjamin kualitas terbaik.</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+              ${featuresHtml}
+            </div>
+          </div>
+        </section>
+
+        <!-- Testimonials Section -->
+        ${testimonialsHtml}
+
+        <!-- FAQ Section -->
+        ${faqsHtml}
+
+        <!-- Bottom CTA -->
+        <section class="py-16 border-t border-slate-900 bg-gradient-to-b from-transparent to-slate-950 flex flex-col items-center text-center px-6">
+          <div class="max-w-xl space-y-6">
+            <h3 class="text-xl sm:text-2xl font-black text-white">Siap untuk Memulai Perubahan?</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Mulai dapatkan akses instan ke file ${escapeHtml(productTitle)} sekarang juga. Pengiriman file instan langsung setelah pembayaran.
+            </p>
+            <div class="text-lg font-extrabold ${themeColorClasses.primaryText}">${formatPrice(productPrice)}</div>
+            <button type="button" class="${themeColorClasses.btnClass} rounded-xl px-8 py-3 text-xs font-black tracking-wide shadow-xl active:scale-95 transition-all">
+              Dapatkan Akses Instan Sekarang
+            </button>
+          </div>
+        </section>
+      </div>
+    `;
+
+    // Inject dynamic accent CSS color configurations into pre-rendered context
+    const cssStyleId = "dynamic-preview-styles";
+    let cssStyleElement = document.getElementById(cssStyleId) as HTMLStyleElement;
+    if (!cssStyleElement) {
+      cssStyleElement = document.createElement("style");
+      cssStyleElement.id = cssStyleId;
+      document.head.appendChild(cssStyleElement);
+    }
+    
+    let accentColor = "#8b5cf6"; // default purple
+    if (state.theme === "emerald") accentColor = "#10b981";
+    else if (state.theme === "ocean") accentColor = "#06b6d4";
+    else if (state.theme === "sunset") accentColor = "#f59e0b";
+
+    cssStyleElement.innerHTML = `
+      .text-accent-preview { color: ${accentColor} !important; }
+    `;
+  }
+
+  // Helper: Escape HTML strings to prevent breaking layout injection
+  function escapeHtml(text: string) {
+    if (!text) return "";
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // 4. Input Change Event Listeners
+  function setupFormListeners() {
+    if (!elements.slug) return;
+    
+    elements.slug.addEventListener("input", (e: any) => {
+      state.slug = slugify(e.target.value);
+      e.target.value = state.slug;
+    });
+
+    elements.title.addEventListener("input", (e: any) => {
+      state.title = e.target.value;
+      renderPreview();
+    });
+
+    elements.subtitle.addEventListener("input", (e: any) => {
+      state.subtitle = e.target.value;
+      renderPreview();
+    });
+
+    elements.status.addEventListener("change", (e: any) => {
+      state.status = e.target.value;
+    });
+
+    elements.heroTitle.addEventListener("input", (e: any) => {
+      state.heroTitle = e.target.value;
+      renderPreview();
+    });
+
+    elements.heroSubtitle.addEventListener("input", (e: any) => {
+      state.heroSubtitle = e.target.value;
+      renderPreview();
+    });
+
+    elements.heroFeatures.addEventListener("input", (e: any) => {
+      state.heroFeatures = e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean);
+      renderPreview();
+    });
+
+    // Theme selector buttons
+    document.querySelectorAll(".theme-select-btn").forEach((btn: any) => {
+      btn.addEventListener("click", (e: any) => {
+        const selectedTheme = btn.getAttribute("data-theme");
+        state.theme = selectedTheme;
+        
+        // Remove highlight from all
+        document.querySelectorAll(".theme-select-btn").forEach((b: any) => {
+          b.classList.remove("border-violet-500/80", "bg-violet-950/20");
+          b.classList.add("border-slate-800");
+        });
+        
+        // Add to clicked
+        btn.classList.add("border-violet-500/80", "bg-violet-950/20");
+        btn.classList.remove("border-slate-800");
+        
+        renderPreview();
+      });
+    });
+
+    // Add list items
+    elements.addFeature.addEventListener("click", () => {
+      state.features.push({ title: "Keunggulan Baru", description: "Penjelasan detail keunggulan.", icon: "zap" });
+      renderFeaturesForm();
+      renderPreview();
+    });
+
+    elements.addTestimonial.addEventListener("click", () => {
+      state.testimonials.push({ name: "Nama Pembeli", role: "Pembeli", content: "Isi testimoni positif di sini.", rating: 5 });
+      renderTestimonialsForm();
+      renderPreview();
+    });
+
+    elements.addFaq.addEventListener("click", () => {
+      state.faqs.push({ question: "Pertanyaan baru?", answer: "Jawaban detail pertanyaan di sini." });
+      renderFaqsForm();
+      renderPreview();
+    });
+
+    // Device toggling
+    elements.deviceDesktop.addEventListener("click", () => {
+      elements.previewViewport.classList.remove("max-w-md");
+      elements.deviceDesktop.classList.add("text-white", "bg-slate-900");
+      elements.deviceMobile.classList.remove("text-white", "bg-slate-900");
+    });
+
+    elements.deviceMobile.addEventListener("click", () => {
+      elements.previewViewport.classList.add("max-w-md");
+      elements.deviceMobile.classList.add("text-white", "bg-slate-900");
+      elements.deviceDesktop.classList.remove("text-white", "bg-slate-900");
+    });
+  }
+
+  // 5. API Call Handler: AI generation
+  async function setupAiGeneration() {
+    if (!elements.generateBtn) return;
+    
+    elements.generateBtn.addEventListener("click", async () => {
+      const prompt = elements.aiPrompt.value.trim();
+      
+      // UI Loading state
+      elements.generateBtn.disabled = true;
+      const spinner = elements.generateBtn.querySelector(".spinner");
+      const btnText = elements.generateBtn.querySelector(".btn-text");
+      
+      if (spinner && btnText) {
+        spinner.classList.remove("hidden");
+        btnText.textContent = "Sedang Membangun Copy Page...";
+      }
+
+      try {
+        const response = await fetch("/api/landingpages/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, prompt })
+        });
+        
+        const resData = await response.json();
+        
+        if (!response.ok || resData.error) {
+          throw new Error(resData.error || "Gagal melakukan AI generation");
+        }
+
+        const aiData = resData.data;
+
+        // Apply generated AI copywriter data to state
+        state.title = aiData.title || state.title;
+        state.subtitle = aiData.subtitle || state.subtitle;
+        state.heroTitle = aiData.heroTitle || state.heroTitle;
+        state.heroSubtitle = aiData.heroSubtitle || state.heroSubtitle;
+        state.heroFeatures = aiData.heroFeatures || state.heroFeatures;
+        state.features = aiData.features || state.features;
+        state.testimonials = aiData.testimonials || state.testimonials;
+        state.faqs = aiData.faqs || state.faqs;
+
+        // Sync inputs & preview
+        syncStateToForm();
+        showToast("Halaman berhasil dibangun dengan AI Copywriter! ✨");
+      } catch (err: any) {
+        alert(err.message || "Gagal menghubungkan ke AI Copywriter.");
+      } finally {
+        elements.generateBtn.disabled = false;
+        if (spinner && btnText) {
+          spinner.classList.add("hidden");
+          btnText.textContent = "Generate ulang dengan AI ✨";
+        }
+      }
+    });
+  }
+
+  // 6. Save Landing Page handler
+  async function setupSaveHandler() {
+    if (!elements.saveBtn) return;
+    
+    elements.saveBtn.addEventListener("click", async () => {
+      elements.saveBtn.disabled = true;
+      elements.saveBtn.textContent = "Menyimpan...";
+
+      try {
+        const response = await fetch("/api/landingpages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: state.productId,
+            slug: state.slug,
+            title: state.title,
+            subtitle: state.subtitle,
+            theme: state.theme,
+            prompt: elements.aiPrompt.value,
+            status: state.status,
+            heroTitle: state.heroTitle,
+            heroSubtitle: state.heroSubtitle,
+            heroFeatures: state.heroFeatures,
+            features: state.features,
+            testimonials: state.testimonials,
+            faqs: state.faqs
+          })
+        });
+
+        const resData = await response.json();
+        if (!response.ok || resData.error) {
+          throw new Error(resData.error || "Gagal menyimpan landing page");
+        }
+
+        showToast("Landing page berhasil disimpan! 🚀");
+        
+        // Refresh live button if it is a new LP
+        if (!existingLp) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          updateLiveViewBtn();
+        }
+      } catch (err: any) {
+        alert(err.message || "Gagal menyimpan data.");
+      } finally {
+        elements.saveBtn.disabled = false;
+        elements.saveBtn.textContent = "Simpan Halaman";
+      }
+    });
+  }
+
+  // Toast notification alert helper
+  function showToast(msg: string) {
+    if (!elements.toast) return;
+    elements.toastMsg.textContent = msg;
+    elements.toast.classList.remove("hidden");
+    elements.toast.classList.add("flex");
+    
+    setTimeout(() => {
+      elements.toast.classList.add("hidden");
+      elements.toast.classList.remove("flex");
+    }, 3000);
+  }
+
+  // Initial boot
+  document.addEventListener("DOMContentLoaded", () => {
+    syncStateToForm();
+    setupFormListeners();
+    setupAiGeneration();
+    setupSaveHandler();
+  });
+</script>

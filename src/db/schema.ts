@@ -209,3 +209,38 @@ export const webhookLogs = sqliteTable("webhook_logs", {
     .default(sql`(strftime('%s', 'now') * 1000)`)
     .notNull(),
 });
+
+// 12. LandingPages Table
+export const landingPages = sqliteTable("landing_pages", {
+  id: text("id").primaryKey(),
+  productId: text("product_id")
+    .references(() => products.id, { onDelete: "cascade" })
+    .unique()
+    .notNull(),
+  sellerId: text("seller_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  slug: text("slug").unique().notNull(),
+  title: text("title").notNull(),
+  subtitle: text("subtitle"),
+  theme: text("theme").default("midnight").notNull(), // midnight, emerald, ocean, sunset
+  prompt: text("prompt"),
+  status: text("status").$type<"DRAFT" | "PUBLISHED">().default("DRAFT").notNull(),
+  
+  // JSON structure for sections
+  heroTitle: text("hero_title").notNull(),
+  heroSubtitle: text("hero_subtitle").notNull(),
+  heroFeatures: text("hero_features"), // JSON string array (e.g. ["Akses Selamanya", "Grup Support WA"])
+  
+  features: text("features").notNull(), // JSON string representing array of {title, description, icon}
+  testimonials: text("testimonials"), // JSON string representing array of {name, role, content, rating}
+  faqs: text("faqs"), // JSON string representing array of {question, answer}
+  
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .default(sql`(strftime('%s', 'now') * 1000)`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .default(sql`(strftime('%s', 'now') * 1000)`)
+    .notNull(),
+});
+

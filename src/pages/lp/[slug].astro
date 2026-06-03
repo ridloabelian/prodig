@@ -1,0 +1,511 @@
+---
+import { env } from "cloudflare:workers";
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+import { getDb } from "../../db";
+import { products, landingPages, reviews, users } from "../../db/schema";
+import { eq, and, desc } from "drizzle-orm";
+
+const { slug } = Astro.params;
+if (!slug) {
+  return Astro.redirect("/");
+}
+
+let lp: any = null;
+let product: any = null;
+let seller: any = null;
+let reviewsList: any[] = [];
+let averageRating = 0;
+
+try {
+  const db = getDb(env);
+  
+  // 1. Fetch Landing Page
+  lp = await db
+    .select()
+    .from(landingPages)
+    .where(eq(landingPages.slug, slug))
+    .get();
+
+  if (!lp) {
+    return Astro.redirect("/404");
+  }
+
+  // If it's a draft, verify user is owner or admin
+  if (lp.status !== "PUBLISHED") {
+    const user = Astro.locals.user;
+    const isOwnerOrAdmin = user && (lp.sellerId === user.id || user.role === "ADMIN");
+    if (!isOwnerOrAdmin) {
+      return Astro.redirect("/");
+    }
+  }
+
+  // 2. Fetch Product & Seller
+  product = await db
+    .select()
+    .from(products)
+    .where(eq(products.id, lp.productId))
+    .get();
+
+  if (!product) {
+    return Astro.redirect("/404");
+  }
+
+  seller = await db
+    .select({
+      name: users.name,
+      whatsapp: users.whatsapp
+    })
+    .from(users)
+    .where(eq(users.id, lp.sellerId))
+    .get();
+
+  // 3. Fetch Product Reviews
+  reviewsList = await db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      createdAt: reviews.createdAt,
+      buyerName: users.name
+    })
+    .from(reviews)
+    .leftJoin(users, eq(reviews.buyerId, users.id))
+    .where(eq(reviews.productId, product.id))
+    .orderBy(desc(reviews.createdAt));
+
+  if (reviewsList.length > 0) {
+    const totalRating = reviewsList.reduce((acc, curr) => acc + curr.rating, 0);
+    averageRating = Number((totalRating / reviewsList.length).toFixed(1));
+  }
+} catch (e) {
+  console.error("Gagal memuat landing page publik:", e);
+  return Astro.redirect("/");
+}
+
+// Parse JSON columns
+const parsedHeroFeatures = lp.heroFeatures ? JSON.parse(lp.heroFeatures) : [];
+const parsedFeatures = lp.features ? JSON.parse(lp.features) : [];
+const parsedTestimonials = lp.testimonials ? JSON.parse(lp.testimonials) : [];
+const parsedFaqs = lp.faqs ? JSON.parse(lp.faqs) : [];
+
+// Check if buyer is logged in
+const user = Astro.locals.user;
+const isLoggedIn = !!user;
+
+// Theme configuration mapping
+let themeClasses = {
+  bg: "bg-slate-950",
+  primaryText: "text-violet-400",
+  bgGradient: "from-violet-600 to-indigo-600",
+  accentBg: "bg-violet-500/5 border-violet-500/10",
+  accentText: "text-violet-400",
+  btnClass: "bg-violet-500 hover:bg-violet-400 text-slate-950 shadow-violet-500/20 focus:ring-violet-500/50",
+  navBtn: "bg-violet-500 hover:bg-violet-400 text-slate-950 shadow-md",
+  gradientBg: "from-violet-500/10 via-transparent to-transparent",
+  glowColor: "shadow-violet-500/10 border-violet-900/30",
+  accentBorder: "border-violet-500/20",
+  badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20"
+};
+
+if (lp.theme === "emerald") {
+  themeClasses = {
+    bg: "bg-slate-950",
+    primaryText: "text-emerald-400",
+    bgGradient: "from-emerald-600 to-teal-600",
+    accentBg: "bg-emerald-500/5 border-emerald-500/10",
+    accentText: "text-emerald-400",
+    btnClass: "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 focus:ring-emerald-500/50",
+    navBtn: "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md",
+    gradientBg: "from-emerald-500/10 via-transparent to-transparent",
+    glowColor: "shadow-emerald-500/10 border-emerald-900/30",
+    accentBorder: "border-emerald-500/20",
+    badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+  };
+} else if (lp.theme === "ocean") {
+  themeClasses = {
+    bg: "bg-slate-950",
+    primaryText: "text-cyan-400",
+    bgGradient: "from-cyan-600 to-blue-600",
+    accentBg: "bg-cyan-500/5 border-cyan-500/10",
+    accentText: "text-cyan-400",
+    btnClass: "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/20 focus:ring-cyan-500/50",
+    navBtn: "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md",
+    gradientBg: "from-cyan-500/10 via-transparent to-transparent",
+    glowColor: "shadow-cyan-500/10 border-cyan-900/30",
+    accentBorder: "border-cyan-500/20",
+    badgeColor: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+  };
+} else if (lp.theme === "sunset") {
+  themeClasses = {
+    bg: "bg-slate-950",
+    primaryText: "text-amber-400",
+    bgGradient: "from-amber-500 to-orange-600",
+    accentBg: "bg-amber-500/5 border-amber-500/10",
+    accentText: "text-amber-400",
+    btnClass: "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 focus:ring-amber-500/50",
+    navBtn: "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md",
+    gradientBg: "from-amber-500/10 via-transparent to-transparent",
+    glowColor: "shadow-amber-500/10 border-amber-900/30",
+    accentBorder: "border-amber-500/20",
+    badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20"
+  };
+}
+
+// Icon mappings
+const iconMap: Record<string, string> = {
+  zap: `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  award: `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`,
+  shield: `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8-2a1 1 0 0 1 .48 0l8 2A1 1 0 0 1 20 6v7z"/></svg>`,
+  cpu: `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 15h3"/><path d="M1 9h3"/><path d="M1 15h3"/></svg>`,
+  users: `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  "book-open": `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+  star: `<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+};
+
+function getIconSvg(name: string) {
+  return iconMap[name] || iconMap.zap;
+}
+
+function formatIDR(val: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0
+  }).format(val);
+}
+---
+
+<Layout title={lp.title}>
+  <div class=`min-h-screen ${themeClasses.bg} text-slate-100 selection:bg-violet-500/30 selection:text-white relative` id="page-container">
+    
+    <!-- Dynamic Theme Accent Colors Styling injection -->
+    <style is:inline define:vars={{ theme: lp.theme }}>
+      :root {
+        --accent-color: #8b5cf6;
+      }
+      #page-container {
+        --accent: var(--accent-color);
+      }
+      .text-accent {
+        color: var(--accent-color) !important;
+      }
+    </style>
+    {lp.theme === "emerald" && <style is:inline>:root { --accent-color: #10b981; }</style>}
+    {lp.theme === "ocean" && <style is:inline>:root { --accent-color: #06b6d4; }</style>}
+    {lp.theme === "sunset" && <style is:inline>:root { --accent-color: #f59e0b; }</style>}
+
+    <!-- Draft Banner -->
+    {lp.status === "DRAFT" && (
+      <div class="bg-amber-500/10 border-b border-amber-500/20 py-2.5 px-4 text-center text-xs font-bold text-amber-400 flex items-center justify-center gap-2 sticky top-0 z-50 backdrop-blur-md">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        Halaman ini berstatus DRAFT dan hanya dapat dilihat oleh Anda (Seller/Admin).
+      </div>
+    )}
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md transition-all">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 items-center justify-between">
+          <div class="flex items-center gap-4">
+            <a href="/" class="flex items-center gap-2">
+              <span class="bg-gradient-to-r from-violet-400 to-indigo-500 bg-clip-text text-xl font-extrabold text-transparent tracking-wider">
+                PRODIG
+              </span>
+            </a>
+            <div class="h-4 w-px bg-slate-800 hidden sm:block"></div>
+            <span class="text-xs font-semibold text-slate-400 hidden sm:block truncate max-w-[200px]">{product.title}</span>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <span class="text-sm font-black text-white hidden md:inline">{formatIDR(product.price)}</span>
+            <button 
+              id="checkout-btn"
+              data-product-id={product.id}
+              data-logged-in={isLoggedIn ? "true" : "false"}
+              class={`rounded-xl px-5 py-2 text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98] ${themeClasses.navBtn}`}
+            >
+              Beli Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="relative z-10">
+      <div id="checkout-error" class="hidden max-w-xl mx-auto mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 text-center"></div>
+
+      <!-- ==================== HERO SECTION ==================== -->
+      <section class="relative pt-24 pb-20 px-4 overflow-hidden text-center flex flex-col items-center">
+        <!-- Glow accents -->
+        <div class=`absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-radial-gradient ${themeClasses.gradientBg} opacity-60 rounded-full blur-[100px] pointer-events-none`></div>
+        
+        <div class="max-w-4xl mx-auto space-y-8 relative z-10">
+          <!-- Benefit Tags -->
+          {parsedHeroFeatures.length > 0 && (
+            <div class="flex flex-wrap justify-center gap-2">
+              {parsedHeroFeatures.map((item: string) => (
+                <span class={`inline-flex items-center gap-1.5 text-xs font-bold ${themeClasses.badgeColor} px-3 py-1 rounded-full border`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><polyline points="20 6 9 17 4 12"/></svg>
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <h1 class="text-4xl sm:text-6xl font-black text-white leading-tight tracking-tight">
+            {lp.heroTitle}
+          </h1>
+
+          <p class="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            {lp.heroSubtitle}
+          </p>
+
+          <!-- Interactive Floating Card -->
+          <div class={`rounded-3xl border ${themeClasses.glowColor} bg-slate-900/30 p-8 max-w-lg mx-auto flex flex-col sm:flex-row items-center gap-6 shadow-2xl backdrop-blur-xl mt-12`}>
+            <img 
+              src={product.thumbnail || "/placeholder.png"} 
+              class="w-28 h-28 rounded-2xl object-cover border border-slate-800 shadow-lg"
+              alt={product.title}
+            />
+            <div class="flex-1 space-y-4 text-left w-full">
+              <div>
+                <span class="text-[10px] uppercase font-extrabold text-slate-500 tracking-widest">Produk Digital</span>
+                <h4 class="text-base font-bold text-white leading-snug line-clamp-2">{product.title}</h4>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <span class={`text-xl font-black ${themeClasses.primaryText}`}>{formatIDR(product.price)}</span>
+              </div>
+              <button 
+                data-product-id={product.id}
+                data-logged-in={isLoggedIn ? "true" : "false"}
+                class={`checkout-action w-full rounded-2xl py-3 text-xs font-black tracking-wide shadow-lg active:scale-95 transition-all ${themeClasses.btnClass}`}
+              >
+                Miliki Sekarang &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== FEATURES SECTION ==================== -->
+      <section class="py-24 px-4 border-t border-slate-900/60 bg-slate-950/20">
+        <div class="max-w-5xl mx-auto space-y-16">
+          <div class="text-center space-y-3">
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Kenapa Harus Memilih Produk Ini?</h2>
+            <p class="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">Kami merancang materi ini dengan standar tertinggi untuk menjamin kualitas terbaik.</p>
+          </div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12">
+            {parsedFeatures.map((feat: any) => (
+              <div class="rounded-3xl border border-slate-900/60 bg-slate-900/10 p-8 flex flex-col gap-6 hover:bg-slate-900/20 hover:border-slate-800/80 transition-all duration-300">
+                <div class="rounded-2xl w-12 h-12 flex items-center justify-center bg-slate-950 border border-slate-800 shadow-inner">
+                  <Fragment set:html={getIconSvg(feat.icon)} />
+                </div>
+                <div class="space-y-2">
+                  <h4 class="text-base font-bold text-white">{feat.title}</h4>
+                  <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">{feat.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TESTIMONIALS SECTION ==================== -->
+      {(parsedTestimonials.length > 0 || reviewsList.length > 0) && (
+        <section class="py-24 px-4 border-t border-slate-900/60 bg-slate-950/40">
+          <div class="max-w-5xl mx-auto space-y-16">
+            <div class="text-center space-y-3">
+              <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Dengarkan Kata Mereka</h2>
+              <p class="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">Kepuasan pembeli adalah prioritas kami. Berikut adalah feedback jujur mereka.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+              <!-- AI/Custom Testimonials -->
+              {parsedTestimonials.map((test: any) => (
+                <div class="rounded-3xl border border-slate-900/60 bg-slate-900/10 p-8 space-y-5 flex flex-col justify-between hover:bg-slate-900/20 hover:border-slate-800/80 transition-all">
+                  <div class="space-y-4">
+                    <div class="flex items-center gap-0.5 text-amber-400">
+                      {Array(test.rating).fill(null).map(() => (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      ))}
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-300 italic leading-relaxed">"{test.content}"</p>
+                  </div>
+                  <div class="flex items-center gap-3 border-t border-slate-900 pt-4 mt-2">
+                    <div class="h-8 w-8 rounded-full bg-violet-500/10 flex items-center justify-center font-bold text-xs text-white uppercase border border-violet-500/20">
+                      {test.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h5 class="text-xs sm:text-sm font-bold text-white">{test.name}</h5>
+                      <p class="text-[10px] text-slate-500">{test.role || 'Pembeli'}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <!-- Real Database Reviews -->
+              {reviewsList.map((review) => (
+                <div class="rounded-3xl border border-slate-900/60 bg-slate-900/10 p-8 space-y-5 flex flex-col justify-between hover:bg-slate-900/20 hover:border-slate-800/80 transition-all">
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-0.5 text-amber-400">
+                        {Array(review.rating).fill(null).map(() => (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        ))}
+                      </div>
+                      <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 rounded px-2 py-0.5 font-bold">Verified Buyer</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-300 italic leading-relaxed">"{review.comment}"</p>
+                  </div>
+                  <div class="flex items-center gap-3 border-t border-slate-900 pt-4 mt-2">
+                    <div class="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center font-bold text-xs text-white uppercase border border-emerald-500/20">
+                      {review.buyerName?.charAt(0) || "U"}
+                    </div>
+                    <div>
+                      <h5 class="text-xs sm:text-sm font-bold text-white">{review.buyerName || "Pengguna Prodig"}</h5>
+                      <p class="text-[10px] text-slate-500">
+                        {new Date(review.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <!-- ==================== FAQ SECTION ==================== -->
+      {parsedFaqs.length > 0 && (
+        <section class="py-24 px-4 border-t border-slate-900/60 bg-slate-950/20">
+          <div class="max-w-4xl mx-auto space-y-16">
+            <div class="text-center space-y-3">
+              <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Ada Pertanyaan?</h2>
+              <p class="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">Kami telah mengumpulkan jawaban dari pertanyaan yang paling sering diajukan.</p>
+            </div>
+
+            <div class="max-w-3xl mx-auto mt-12 space-y-4">
+              {parsedFaqs.map((faq: any) => (
+                <div class="rounded-2xl border border-slate-900/60 bg-slate-900/10 p-6 space-y-3 transition-colors hover:border-slate-800">
+                  <h4 class="text-sm sm:text-base font-black text-white">{faq.question}</h4>
+                  <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">{faq.answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <!-- ==================== CTA SECTION ==================== -->
+      <section class="py-28 px-4 border-t border-slate-900 bg-gradient-to-b from-slate-950/10 to-slate-950 flex flex-col items-center text-center">
+        <div class="max-w-2xl space-y-8 relative z-10">
+          <h2 class="text-3xl sm:text-5xl font-black text-white leading-tight">Siap Untuk Melangkah Maju?</h2>
+          
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
+            Dapatkan file master {product.title} sekarang. Akses file instan, aman, dengan jaminan update selamanya.
+          </p>
+          
+          <div class="space-y-4">
+            <div class="text-2xl font-black text-white">
+              Hanya <span class={themeClasses.primaryText}>{formatIDR(product.price)}</span>
+            </div>
+            
+            <button 
+              data-product-id={product.id}
+              data-logged-in={isLoggedIn ? "true" : "false"}
+              class={`checkout-action px-10 py-4 rounded-2xl text-xs sm:text-sm font-black tracking-wide shadow-2xl active:scale-[0.98] hover:scale-[1.02] transition-all ${themeClasses.btnClass}`}
+            >
+              Miliki Akses Instan Sekarang
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 py-8 bg-slate-950">
+      <div class="max-w-7xl mx-auto px-6 text-center text-xs text-slate-500">
+        &copy; {new Date().getFullYear()} PRODIG.ID. Seluruh hak cipta dilindungi.
+      </div>
+    </footer>
+  </div>
+</Layout>
+
+<script is:inline>
+  // Capture affiliate ref code from search parameter
+  const params = new URLSearchParams(window.location.search);
+  const ref = params.get("ref");
+  if (ref) {
+    document.cookie = `affiliate_code=${ref}; max-age=${30 * 24 * 60 * 60}; path=/`;
+  }
+
+  // Handle checkout flow for both buttons
+  const checkoutButtons = document.querySelectorAll("#checkout-btn, .checkout-action");
+  const checkoutError = document.getElementById("checkout-error");
+
+  checkoutButtons.forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (checkoutError) {
+        checkoutError.classList.add("hidden");
+        checkoutError.textContent = "";
+      }
+
+      const productId = btn.getAttribute("data-product-id");
+      const isLoggedIn = btn.getAttribute("data-logged-in") === "true";
+
+      if (!isLoggedIn) {
+        // Redirect to login page with current URL as redirect back
+        const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?redirect=${currentUrl}`;
+        return;
+      }
+
+      // Disable buttons
+      checkoutButtons.forEach(b => b.disabled = true);
+      const originalText = btn.textContent;
+      btn.textContent = "Memuat Invoice...";
+
+      // Extract affiliate code from cookies
+      const affiliateCode = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("affiliate_code="))
+        ?.split("=")[1];
+
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, affiliateCode }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          if (checkoutError) {
+            checkoutError.textContent = data.error || "Gagal melanjutkan ke pembayaran.";
+            checkoutError.classList.remove("hidden");
+          }
+          checkoutButtons.forEach(b => b.disabled = false);
+          btn.textContent = originalText;
+          return;
+        }
+
+        // Redirect to Mayar checkout invoice
+        if (data.invoiceUrl) {
+          window.location.href = data.invoiceUrl;
+        }
+      } catch (err) {
+        console.error("Gagal memproses checkout:", err);
+        if (checkoutError) {
+          checkoutError.textContent = "Koneksi bermasalah. Pastikan internet Anda aktif.";
+          checkoutError.classList.remove("hidden");
+        }
+        checkoutButtons.forEach(b => b.disabled = false);
+        btn.textContent = originalText;
+      }
+    });
+  });
+</script>

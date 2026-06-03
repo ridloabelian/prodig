@@ -1,46 +1,43 @@
 @import "tailwindcss";
 
 @theme {
-  /* Navy Backgrounds & Borders */
-  --color-slate-950: #050913; /* --navy-900: paling gelap */
-  --color-slate-900: #080f1e; /* --navy-800 */
-  --color-slate-850: #0d162a; /* --navy-700 */
-  --color-slate-800: #1f2c47; /* --navy-line: untuk border/garis */
-  --color-slate-700: #131e36; /* --navy-600 */
-  --color-slate-600: #1c2a47; /* --navy-500 */
-  --color-slate-500: #1f2c47;
+  /* Background & Surface Layering */
+  --color-slate-950: #0A0E17;
+  --color-slate-900: #111827;
+  --color-slate-850: #151f32;
+  --color-slate-800: #1F2937;
+  --color-slate-700: #27354f;
+  --color-slate-600: #334155;
+  --color-slate-500: #475569;
 
-  /* Neutral Text Colors */
-  --color-slate-50: #f4ecd8;  /* --ivory: krem gading */
-  --color-slate-100: #f4ecd8; /* --ivory */
-  --color-slate-200: #e8e1cb; /* --bone: krem tulang */
-  --color-slate-300: #e8e1cb; /* --bone */
-  --color-slate-350: #8895af; /* --muted */
-  --color-slate-400: #8895af; /* --muted: abu-abu kebiruan */
-  --color-slate-500: #6e7a96; /* --muted-2: abu-abu gelap */
-  --color-slate-600: #6e7a96; /* --muted-2 */
+  /* Text Colors */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
 
-  /* Gold Accent & Highlight (Mapped to Violet classes) */
+  /* Gold Accent Palette (mapped via violet classes for convenience) */
   --color-violet-50: #fdfbf7;
   --color-violet-100: #f9f4e2;
   --color-violet-200: #f1e5bf;
   --color-violet-300: #e7d295;
-  --color-violet-400: #d8bc6a; /* --gold-soft */
-  --color-violet-500: #c9a84c; /* --gold: emas utama */
-  --color-violet-600: #a78934; /* --gold-deep: emas tua */
+  --color-violet-400: #E5C158;
+  --color-violet-500: #D4AF37;
+  --color-violet-600: #B8941F;
   --color-violet-700: #8b7123;
   --color-violet-800: #6f5716;
   --color-violet-900: #54400c;
   --color-violet-950: #392b05;
 
-  /* Gold Gradient Support (Mapped to Indigo classes) */
+  /* Indigo mapped to same gold for gradient support */
   --color-indigo-50: #fdfbf7;
   --color-indigo-100: #f9f4e2;
   --color-indigo-200: #f1e5bf;
   --color-indigo-300: #e7d295;
-  --color-indigo-400: #d8bc6a; /* --gold-soft */
-  --color-indigo-500: #c9a84c; /* --gold: emas utama */
-  --color-indigo-600: #a78934; /* --gold-deep */
+  --color-indigo-400: #E5C158;
+  --color-indigo-500: #D4AF37;
+  --color-indigo-600: #B8941F;
   --color-indigo-700: #8b7123;
   --color-indigo-800: #6f5716;
   --color-indigo-900: #54400c;

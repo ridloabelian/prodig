@@ -22,12 +22,12 @@ const formattedPrice = new Intl.NumberFormat("id-ID", {
 }).format(product.price);
 ---
 
-<div class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-violet-500/50 hover:bg-slate-900/80 hover:shadow-lg hover:shadow-violet-500/10">
+<div class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-violet-500/40 hover:bg-slate-900/80 hover:shadow-lg hover:shadow-violet-500/10">
   <!-- Glow Effect on Hover -->
-  <div class="absolute -inset-px rounded-2xl bg-gradient-to-t from-violet-600/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+  <div class="absolute -inset-px rounded-2xl bg-gradient-to-t from-violet-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
 
   <!-- Image Section -->
-  <div class="relative aspect-video w-full overflow-hidden bg-slate-950">
+  <div class="relative aspect-[16/10] w-full overflow-hidden bg-slate-950">
     <img 
       src={product.thumbnail} 
       alt={product.title}
@@ -35,7 +35,7 @@ const formattedPrice = new Intl.NumberFormat("id-ID", {
       loading="lazy"
     />
     {product.categoryName && (
-      <span class="absolute top-3 left-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-violet-400 backdrop-blur-md border border-violet-500/20">
+      <span class="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md border border-white/10">
         {product.categoryName}
       </span>
     )}
@@ -59,7 +59,7 @@ const formattedPrice = new Intl.NumberFormat("id-ID", {
       <span class="text-lg font-extrabold text-violet-400">
         {formattedPrice}
       </span>
-      <span class="rounded-lg bg-violet-600/20 px-3 py-1.5 text-xs font-bold text-violet-300 transition-colors duration-300 group-hover:bg-violet-600 group-hover:text-white">
+      <span class="inline-flex h-9 items-center rounded-lg bg-violet-500/20 px-4 text-xs font-bold text-violet-300 transition-colors duration-300 group-hover:bg-violet-500 group-hover:text-slate-950">
         Beli Sekarang
       </span>
     </div>
