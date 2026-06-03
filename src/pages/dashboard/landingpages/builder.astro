@@ -21,6 +21,19 @@ let product: any = null;
 let existingLp: any = null;
 let errorMsg = "";
 
+function parseJsonArray(value: unknown, fallback: any[] = []) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || value.trim() === "") return fallback;
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (e) {
+    console.error("Gagal parse data landing page builder:", e);
+    return fallback;
+  }
+}
+
 try {
   const db = getDb(env);
   product = await db
@@ -42,6 +55,20 @@ try {
   console.error("Gagal memuat data untuk landing page builder:", e);
   errorMsg = e.message;
 }
+
+if (existingLp) {
+  existingLp = {
+    ...existingLp,
+    heroFeatures: parseJsonArray(existingLp.heroFeatures),
+    features: parseJsonArray(existingLp.features),
+    testimonials: parseJsonArray(existingLp.testimonials),
+    faqs: parseJsonArray(existingLp.faqs),
+  };
+}
+
+const productTitle = product?.title || "Produk Prodig";
+const productPrice = Number(product?.price || 0);
+const productThumbnail = product?.thumbnail || "";
 ---
 
 <Layout title={`Landing Page Builder - ${product?.title || "Prodig"}`}>
