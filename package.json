@@ -21,6 +21,7 @@
     "astro": "^6.4.3",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
+    "lucide": "^1.17.0",
     "pdf-lib": "^1.17.1",
     "resend": "^6.12.4",
     "tailwindcss": "^4.3.0",

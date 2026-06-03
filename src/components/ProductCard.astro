@@ -22,46 +22,41 @@ const formattedPrice = new Intl.NumberFormat("id-ID", {
 }).format(product.price);
 ---
 
-<div class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-violet-500/40 hover:bg-slate-900/80 hover:shadow-lg hover:shadow-violet-500/10 active:scale-[0.98]">
-  <!-- Glow Effect on Hover -->
-  <div class="absolute -inset-px rounded-2xl bg-gradient-to-t from-violet-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
-
+<article class="group relative flex flex-col overflow-hidden rounded-[18px] border border-slate-800 bg-slate-900 transition-all duration-[350ms] hover:-translate-y-2 hover:border-violet-500/40 hover:shadow-[0_30px_50px_-28px_rgba(0,0,0,0.85),0_0_0_1px_rgba(212,175,55,0.08)]">
   <!-- Image Section -->
-  <div class="relative aspect-[16/10] w-full overflow-hidden bg-slate-950">
+  <div class="relative aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-slate-850 to-[#0b1018]">
     <img 
       src={product.thumbnail} 
       alt={product.title}
-      class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      class="h-full w-full object-cover transition-transform duration-[600ms] group-hover:scale-[1.07]"
       loading="lazy"
     />
     {product.categoryName && (
-      <span class="absolute top-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm border border-white/10 md:top-3 md:left-3 md:px-3 md:py-1 md:text-xs">
+      <span class="absolute top-3 left-3 z-[2] rounded-full bg-black/60 px-3 py-1 text-[11.5px] font-bold text-white backdrop-blur-sm border border-white/10">
         {product.categoryName}
       </span>
     )}
   </div>
 
   <!-- Content Section -->
-  <div class="relative flex flex-grow flex-col p-4 md:p-5">
-    <div class="mb-1 flex items-center justify-between">
-      <span class="text-xs text-slate-500">
-        oleh <span class="font-medium text-slate-400">{product.sellerName || "Kreator"}</span>
-      </span>
+  <div class="flex flex-1 flex-col p-[18px]">
+    <div class="mb-[7px] text-xs text-slate-400">
+      oleh <span class="font-semibold text-slate-300">{product.sellerName || "Kreator"}</span>
     </div>
-    <h3 class="mb-3 line-clamp-2 text-base font-semibold leading-snug text-slate-100 group-hover:text-violet-400 transition-colors duration-300">
+    <h3 class="mb-4 line-clamp-2 text-base font-bold leading-snug text-slate-100 transition-colors duration-300 group-hover:text-violet-300">
       <a href={`/products/${product.id}`} class="focus:outline-none">
         <span class="absolute inset-0" aria-hidden="true"></span>
         {product.title}
       </a>
     </h3>
     
-    <div class="mt-auto pt-3 md:pt-4 flex items-center justify-between border-t border-slate-800/80">
-      <span class="text-base md:text-lg font-extrabold text-violet-400">
+    <div class="mt-auto flex items-center justify-between border-t border-slate-800 pt-4">
+      <span class="font-display text-lg font-extrabold text-violet-400" style="font-family: var(--font-display);">
         {formattedPrice}
       </span>
-      <span class="inline-flex h-10 md:h-9 items-center rounded-lg bg-violet-500/20 px-4 text-sm md:text-xs font-medium md:font-bold text-violet-300 transition-colors duration-300 group-hover:bg-violet-500 group-hover:text-slate-950">
+      <span class="inline-flex items-center rounded-[10px] bg-violet-500/15 px-[14px] py-[9px] text-xs font-bold text-violet-300 transition-colors duration-300 group-hover:bg-gradient-to-r group-hover:from-violet-400 group-hover:to-violet-500 group-hover:text-[#1a1505]">
         Beli Sekarang
       </span>
     </div>
   </div>
-</div>
+</article>
