@@ -33,3 +33,5 @@ dist/
 *.log
 tail_output.log
 
+.env.development
+.envrc
