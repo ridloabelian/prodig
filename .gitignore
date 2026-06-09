@@ -35,3 +35,4 @@ tail_output.log
 
 .env.development
 .envrc
+.env.*.local
