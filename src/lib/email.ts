@@ -14,6 +14,7 @@ export async function sendPurchaseSuccessEmail(
     productPrice: number;
     downloadUrl: string;
     libraryUrl: string;
+    mentorUrl?: string;
   }
 ) {
   const resend = getResend(env);
@@ -46,6 +47,13 @@ export async function sendPurchaseSuccessEmail(
               Download File
             </a>
           </p>
+          ${data.mentorUrl ? `
+          <p style="margin: 16px 0;">
+            <a href="${data.mentorUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              Akses AI Mentor Mas Bluprint
+            </a>
+          </p>
+          ` : ''}
           <p style="font-size: 12px; color: #666;">
             Link download berlaku 24 jam. Kamu juga bisa mengakses file kapan saja melalui <a href="${data.libraryUrl}" style="color: #000; text-decoration: underline;">Library</a>.
           </p>

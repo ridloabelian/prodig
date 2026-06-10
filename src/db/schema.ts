@@ -116,6 +116,7 @@ export const transactions = sqliteTable("transactions", {
   downloadCount: integer("download_count").default(0).notNull(),
   lastDownloadAt: integer("last_download_at", { mode: "timestamp" }),
   watermarkedFileKey: text("watermarked_file_key"),
+  notes: text("notes"), // JSON metadata untuk integrasi external (mentor URL, dll)
   createdAt: integer("created_at", { mode: "timestamp" })
     .default(sql`(strftime('%s', 'now') * 1000)`)
     .notNull(),

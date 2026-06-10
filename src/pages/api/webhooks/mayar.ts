@@ -151,12 +151,22 @@ export const POST: APIRoute = async (context) => {
       const appUrl = env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const downloadUrl = `${appUrl}/download?token=${transaction.downloadToken}`;
 
+      // Get mentor URL from transaction notes (set by CuanBlueprint webhook)
+      let mentorUrl: string | undefined;
+      try {
+        const notes = transaction.notes ? JSON.parse(transaction.notes) : null;
+        mentorUrl = notes?.mentorUrl;
+      } catch {
+        mentorUrl = undefined;
+      }
+
       if (buyer) {
         await sendPurchaseSuccessEmail(env, buyer.email, {
           productTitle: product?.title || "Produk Digital",
           productPrice: transaction.subtotal,
           downloadUrl,
           libraryUrl: `${appUrl}/library`,
+          mentorUrl,
         });
       }
 
