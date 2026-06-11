@@ -29,7 +29,10 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "vite": "^7"
+    "vite": "^7",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
