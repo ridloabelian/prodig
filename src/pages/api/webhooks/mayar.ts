@@ -14,11 +14,52 @@ import {
 export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
-  const env = env;
-  const db = getDb(env);
+  const requestEnv = context.locals.runtime?.env || env;
+  const db = getDb(requestEnv);
 
   try {
-    const payload = await context.request.json();
+    // ─── VERIFY WEBHOOK SIGNATURE (Mayar) ───
+    const signature = context.request.headers.get("x-mayar-signature") || context.request.headers.get("x-webhook-signature");
+    const webhookSecret = requestEnv.MAYAR_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      console.error("MAYAR_WEBHOOK_SECRET not configured");
+      return new Response(JSON.stringify({ ok: false, error: "Webhook secret not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Get raw body for signature verification
+    const rawBody = await context.request.text();
+
+    // Verify HMAC-SHA256 signature (Mayar standard)
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(webhookSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const sigBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
+    const expectedSig = Array.from(new Uint8Array(sigBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Support both raw hex and "sha256=..." prefix formats
+    const sigToCheck = signature?.replace(/^sha256=/i, "") || "";
+
+    if (sigToCheck && sigToCheck !== expectedSig) {
+      console.error("Invalid Mayar webhook signature", { expected: expectedSig.slice(0, 16) + "...", received: sigToCheck.slice(0, 16) + "..." });
+      return new Response(JSON.stringify({ ok: false, error: "Invalid signature" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Parse payload after signature verification
+    const payload = JSON.parse(rawBody);
 
     const paymentId = payload.paymentId || payload.id || payload.data?.id;
     const status = payload.status || payload.data?.status;
@@ -131,7 +172,7 @@ export const POST: APIRoute = async (context) => {
       try {
         if (product && isPdfFile(product.fileKey)) {
           const wKey = `watermarked/${transaction.id}/${product.fileKey}`;
-          await watermarkPdf(env, product.fileKey, wKey, {
+          await watermarkPdf(requestEnv, product.fileKey, wKey, {
             buyerEmail: buyer?.email || "",
             transactionId: transaction.id,
           });
@@ -148,7 +189,7 @@ export const POST: APIRoute = async (context) => {
       }
 
       // 3. Dispatch purchase success email using Resend
-      const appUrl = env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl = requestEnv.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const downloadUrl = `${appUrl}/download?token=${transaction.downloadToken}`;
 
       // Get mentor URL from transaction notes (set by CuanBlueprint webhook)
@@ -161,7 +202,7 @@ export const POST: APIRoute = async (context) => {
       }
 
       if (buyer) {
-        await sendPurchaseSuccessEmail(env, buyer.email, {
+        await sendPurchaseSuccessEmail(requestEnv, buyer.email, {
           productTitle: product?.title || "Produk Digital",
           productPrice: transaction.subtotal,
           downloadUrl,
@@ -177,7 +218,7 @@ export const POST: APIRoute = async (context) => {
         if (buyer && buyer.whatsapp) {
           waPromises.push(
             notifyBuyerPaymentSuccess(
-              env,
+              requestEnv,
               buyer.whatsapp,
               buyer.name || "Pembeli",
               product?.title || "Produk Digital",
@@ -189,7 +230,7 @@ export const POST: APIRoute = async (context) => {
         if (seller && seller.whatsapp) {
           waPromises.push(
             notifySellerNewSale(
-              env,
+              requestEnv,
               seller.whatsapp,
               seller.name || "Penjual",
               product?.title || "Produk Digital",
@@ -202,7 +243,7 @@ export const POST: APIRoute = async (context) => {
         if (affiliate && affiliateUser && affiliateUser.whatsapp) {
           waPromises.push(
             notifyAffiliateConversion(
-              env,
+              requestEnv,
               affiliateUser.whatsapp,
               affiliateUser.name || "Affiliate",
               product?.title || "Produk Digital",
