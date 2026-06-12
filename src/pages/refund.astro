@@ -1,0 +1,123 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Kebijakan Pengembalian - Prodig">
+  <main class="min-h-screen bg-slate-950 text-slate-50">
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/50">
+      <div class="mx-auto max-w-4xl px-6 py-8">
+        <a href="/" class="text-sm text-slate-400 hover:text-emerald-400 transition-colors">← Kembali ke Beranda</a>
+        <h1 class="mt-4 text-3xl font-bold text-white">Kebijakan Pengembalian Dana</h1>
+        <p class="mt-2 text-slate-400">Terakhir diperbarui: 12 Juni 2026</p>
+      </div>
+    </header>
+
+    <div class="mx-auto max-w-4xl px-6 py-12">
+      <div class="prose prose-invert prose-slate max-w-none">
+        <p class="text-lg text-slate-300">
+          <strong>Prodig</strong> adalah marketplace produk digital. Karena sifat produk digital yang tidak dapat dikembalikan, kebijakan ini dirancang untuk adil bagi pembeli dan penjual.
+        </p>
+
+        <div class="bg-emerald-900/20 border border-emerald-800 rounded-lg p-6 mt-6">
+          <h3 class="text-emerald-400 font-semibold text-lg mb-2">⚡ Ringkasan Cepat</h3>
+          <ul class="text-slate-300 space-y-2">
+            <li>✅ <strong>Refund penuh</strong> jika produk tidak terkirim / link rusak</li>
+            <li>✅ <strong>Refund parsial</strong> jika produk tidak sesuai deskripsi</li>
+            <li>❌ <strong>Tidak refund</strong> untuk pembelian yang sudah di-download dengan niat</li>
+            <li>⏰ Batas waktu klaim: <strong>7 hari</strong> setelah pembelian</li>
+          </ul>
+        </div>
+
+        <h2 class="text-xl font-semibold text-white mt-8">1. Kondisi yang Memenuhi Syarat Refund</h2>
+        <h3 class="text-lg font-medium text-emerald-400 mt-4">1.1 Refund Penuh (100%)</h3>
+        <ul class="text-slate-300 space-y-2">
+          <li>Produk tidak terkirim setelah pembayaran berhasil (link download tidak muncul).</li>
+          <li>File produk corrupt atau tidak bisa dibuka setelah di-download.</li>
+          <li>Produk yang dijual adalah duplikat / plagiat dari produk lain.</li>
+          <li>Penjual tidak lagi aktif dan tidak merespons dalam 7 hari.</li>
+          <li>Kesalahan sistem yang menyebabkan double charge (dibayar 2x).</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-emerald-400 mt-4">1.2 Refund Parsial (50%)</h3>
+        <ul class="text-slate-300 space-y-2">
+          <li>Produk tidak sesuai deskripsi (misal: diklaim 100 halaman tapi hanya 20 halaman).</li>
+          <li>Kualitas produk jauh di bawah ekspektasi yang wajar.</li>
+          <li>Produk mengandung informasi yang sangat tidak akurat atau menyesatkan.</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-emerald-400 mt-4">1.3 Tidak Memenuhi Syarat Refund</h3>
+        <ul class="text-slate-300 space-y-2">
+          <li>Produk sudah di-download dan digunakan dengan sengaja.</li>
+          <li>Perubahan pikiran setelah pembelian ("saya tidak butuh lagi").</li>
+          <li>Ketidakcocokan dengan software/perangkat pribadi (kecuali disebutkan di deskripsi).</li>
+          <li>Produk sudah di-review positif oleh pembeli.</li>
+          <li>Klaim diajukan setelah 7 hari dari tanggal pembelian.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">2. Proses Refund</h2>
+        <ol class="text-slate-300 space-y-3">
+          <li>
+            <strong>Ajukan Klaim</strong><br>
+            Kirim email ke <a href="mailto:refund@prodig.id" class="text-emerald-400 hover:underline">refund@prodig.id</a> dengan subject: <code>[REFUND] #{order_id} - {alasan}</code>
+          </li>
+          <li>
+            <strong>Verifikasi</strong><br>
+            Tim kami akan memverifikasi klaim dalam 1-2 hari kerja. Kami mungkin meminta bukti tambahan (screenshot, screen recording).
+          </li>
+          <li>
+            <strong>Keputusan</strong><br>
+            - <strong>Refund disetujui</strong>: Dana dikembalikan ke rekening / e-wallet pembeli dalam 3-5 hari kerja.<br>
+            - <strong>Refund ditolak</strong>: Alasan penolakan akan dijelaskan via email.<br>
+            - <strong>Mediasi</strong>: Jika ada sengketa, kami akan mediasi antara pembeli dan penjual.
+          </li>
+        </ol>
+
+        <h2 class="text-xl font-semibold text-white mt-8">3. Mekanisme Pengembalian Dana</h2>
+        <ul class="text-slate-300 space-y-2">
+          <li>Refund diproses melalui gateway pembayaran yang sama (Mayar).</li>
+          <li>Biaya transaksi (payment gateway fee) tidak dapat dikembalikan.</li>
+          <li>Untuk refund parsial, dana dikembalikan sesuai persentase yang disetujui.</li>
+          <li>Komisi affiliate untuk transaksi yang di-refund akan ditarik kembali dari saldo affiliate.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">4. Masa Penahanan Dana (Holding Period)</h2>
+        <p class="text-slate-300">
+          Untuk melindungi pembeli, kami menerapkan <strong>holding period 7 hari</strong> untuk dana penjual:
+        </p>
+        <ul class="text-slate-300 space-y-2">
+          <li>Dana penjual ditahan selama 7 hari setelah transaksi sukses.</li>
+          <li>Jika ada refund dalam periode ini, dana dipotong dari saldo yang di-hold.</li>
+          <li>Setelah 7 hari, dana dapat ditarik oleh penjual.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">5. Penipuan & Penyalahgunaan</h2>
+        <p class="text-slate-300">
+          Kami mengambil tindakan tegas terhadap penyalahgunaan sistem refund:
+        </p>
+        <ul class="text-slate-300 space-y-2">
+          <li>Pembeli yang mencoba fraud (download lalu refund) akan dibanned permanen.</li>
+          <li>Penjual yang sengaja menjual produk palsu akan dibanned dan dana dibekukan.</li>
+          <li>Indikator fraud: riwayat refund tinggi, download sebelum klaim, dll.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">6. Kontak</h2>
+        <p class="text-slate-300">
+          Untuk pengajuan refund atau pertanyaan:
+        </p>
+        <p class="text-slate-300">
+          📧 <a href="mailto:refund@prodig.id" class="text-emerald-400 hover:underline">refund@prodig.id</a><br>
+          📱 WhatsApp: [nomor support]<br>
+          ⏰ Jam operasional: Senin-Jumat, 09:00-17:00 WIB
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900/50 py-8">
+      <div class="mx-auto max-w-4xl px-6 text-center text-sm text-slate-500">
+        <p>© 2026 Prodig. Marketplace Produk Digital Indonesia.</p>
+      </div>
+    </footer>
+  </main>
+</Layout>

@@ -1,0 +1,134 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Kebijakan Privasi - Prodig">
+  <main class="min-h-screen bg-slate-950 text-slate-50">
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/50">
+      <div class="mx-auto max-w-4xl px-6 py-8">
+        <a href="/" class="text-sm text-slate-400 hover:text-emerald-400 transition-colors">← Kembali ke Beranda</a>
+        <h1 class="mt-4 text-3xl font-bold text-white">Kebijakan Privasi</h1>
+        <p class="mt-2 text-slate-400">Terakhir diperbarui: 12 Juni 2026</p>
+      </div>
+    </header>
+
+    <div class="mx-auto max-w-4xl px-6 py-12">
+      <div class="prose prose-invert prose-slate max-w-none">
+        <p class="text-lg text-slate-300">
+          <strong>Prodig</strong> menghargai privasi Anda. Kebijakan ini menjelaskan bagaimana kami mengumpulkan, menggunakan, menyimpan, dan melindungi data pribadi Anda.
+        </p>
+
+        <h2 class="text-xl font-semibold text-white mt-8">1. Informasi yang Kami Kumpulkan</h2>
+        <h3 class="text-lg font-medium text-emerald-400 mt-4">1.1 Informasi Akun</h3>
+        <ul class="text-slate-300 space-y-2">
+          <li>Nama lengkap</li>
+          <li>Alamat email</li>
+          <li>Nomor telepon / WhatsApp</li>
+          <li>Password (terenkripsi dengan bcrypt)</li>
+          <li>Informasi rekening bank (untuk penarikan dana penjual)</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-emerald-400 mt-4">1.2 Informasi Transaksi</h3>
+        <ul class="text-slate-300 space-y-2">
+          <li>Riwayat pembelian dan penjualan</li>
+          <li>Detail produk yang dibeli/dijual</li>
+          <li>Data pembayaran (melalui Mayar — kami tidak menyimpan detail kartu kredit)</li>
+          <li>Alamat IP dan waktu transaksi</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-emerald-400 mt-4">1.3 Informasi Teknis</h3>
+        <ul class="text-slate-300 space-y-2">
+          <li>Alamat IP</li>
+          <li>Browser dan perangkat yang digunakan</li>
+          <li>Cookie dan data sesi</li>
+          <li>Log aktivitas untuk keamanan</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">2. Bagaimana Kami Menggunakan Data</h2>
+        <ul class="text-slate-300 space-y-2">
+          <li><strong>Operasional</strong>: Memproses transaksi, mengirim produk, dan mengelola akun.</li>
+          <li><strong>Komunikasi</strong>: Mengirim email transaksi, notifikasi, dan update.</li>
+          <li><strong>Keamanan</strong>: Mendeteksi dan mencegah aktivitas mencurigakan.</li>
+          <li><strong>Analitik</strong>: Memahami penggunaan platform untuk perbaikan layanan.</li>
+          <li><strong>Legal</strong>: Memenuhi kewajiban hukum dan menyelesaikan sengketa.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">3. Berbagi Informasi</h2>
+        <p class="text-slate-300">
+          Kami <strong>tidak menjual</strong> data pribadi Anda. Kami hanya membagikan data dengan pihak ketiga dalam situasi berikut:
+        </p>
+        <ul class="text-slate-300 space-y-2">
+          <li><strong>Gateway Pembayaran (Mayar)</strong>: Untuk memproses transaksi.</li>
+          <li><strong>Email Service (Resend)</strong>: Untuk mengirim email transaksi.</li>
+          <li><strong>WhatsApp (Conviq)</strong>: Untuk notifikasi transaksi (opsional).</li>
+          <li><strong>Cloudflare</strong>: Untuk hosting dan keamanan infrastruktur.</li>
+          <li><strong>Kewajiban Hukum</strong>: Jika diwajibkan oleh peraturan perundangan.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">4. Penyimpanan & Keamanan</h2>
+        <ul class="text-slate-300 space-y-2">
+          <li>Data disimpan di <strong>Cloudflare D1 (SQLite)</strong> dan <strong>R2</strong>.</li>
+          <li>Password dienkripsi dengan bcrypt (salted hash).</li>
+          <li>Semua komunikasi menggunakan HTTPS (TLS 1.3).</li>
+          <li>Akses data dibatasi hanya untuk personel yang berwenang.</li>
+          <li>Cloudflare Workers environment variables digunakan untuk secrets.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">5. Cookie</h2>
+        <p class="text-slate-300">
+          Kami menggunakan cookie untuk:
+        </p>
+        <ul class="text-slate-300 space-y-2">
+          <li>Autentikasi sesi pengguna</li>
+          <li>Preferensi bahasa dan tampilan</li>
+          <li>Analitik penggunaan (anonim)</li>
+        </ul>
+        <p class="text-slate-300">
+          Anda dapat menonaktifkan cookie melalui browser, tetapi beberapa fitur mungkin tidak berfungsi optimal.
+        </p>
+
+        <h2 class="text-xl font-semibold text-white mt-8">6. Hak Pengguna</h2>
+        <p class="text-slate-300">
+          Anda memiliki hak untuk:
+        </p>
+        <ul class="text-slate-300 space-y-2">
+          <li><strong>Akses</strong>: Melihat data pribadi yang kami miliki.</li>
+          <li><strong>Koreksi</strong>: Memperbarui informasi yang tidak akurat.</li>
+          <li><strong>Hapus</strong>: Meminta penghapusan akun dan data (subject to legal retention).</li>
+          <li><strong>Portabilitas</strong>: Mengekspor data Anda dalam format yang dapat dibaca.</li>
+          <li><strong>Keberatan</strong>: Menolak penggunaan data untuk marketing tertentu.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">7. Retensi Data</h2>
+        <ul class="text-slate-300 space-y-2">
+          <li>Data akun: Dijaga selama akun aktif + 2 tahun setelah penutupan.</li>
+          <li>Data transaksi: 5 tahun (sesuai kewajiban perpajakan Indonesia).</li>
+          <li>Log keamanan: 90 hari.</li>
+          <li>Email marketing: Dihapus segera setelah opt-out.</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold text-white mt-8">8. Perubahan Kebijakan</h2>
+        <p class="text-slate-300">
+          Kebijakan ini dapat diperbarui. Perubahan signifikan akan diumumkan via email atau notifikasi platform. Penggunaan berkelanjutan dianggap sebagai persetujuan.
+        </p>
+
+        <h2 class="text-xl font-semibold text-white mt-8">9. Kontak</h2>
+        <p class="text-slate-300">
+          Untuk pertanyaan privasi, akses data, atau permintaan penghapusan, hubungi:
+        </p>
+        <p class="text-slate-300">
+          📧 <a href="mailto:privacy@prodig.id" class="text-emerald-400 hover:underline">privacy@prodig.id</a><br>
+          📱 WhatsApp: [nomor support]
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900/50 py-8">
+      <div class="mx-auto max-w-4xl px-6 text-center text-sm text-slate-500">
+        <p>© 2026 Prodig. Marketplace Produk Digital Indonesia.</p>
+      </div>
+    </footer>
+  </main>
+</Layout>
